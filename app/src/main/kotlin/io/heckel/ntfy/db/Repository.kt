@@ -401,6 +401,23 @@ class Repository(private val sharedPrefs: SharedPreferences, private val databas
             .apply()
     }
 
+    // --- SMS Topic Preference ---
+    fun getSmsTopic(): String? {
+        return sharedPrefs.getString(SHARED_PREFS_SMS_TOPIC, null)
+    }
+
+    fun setSmsTopic(topic: String) {
+        if (topic.isEmpty()) {
+            sharedPrefs.edit()
+                .remove(SHARED_PREFS_SMS_TOPIC)
+                .apply()
+        } else {
+            sharedPrefs.edit()
+                .putString(SHARED_PREFS_SMS_TOPIC, topic)
+                .apply()
+        }
+    }
+
     private fun toSubscriptionList(list: List<SubscriptionWithMetadata>): List<Subscription> {
         return list.map { s ->
             val connectionState = connectionStates.getOrElse(s.id) { ConnectionState.NOT_APPLICABLE }
@@ -495,6 +512,7 @@ class Repository(private val sharedPrefs: SharedPreferences, private val databas
         const val SHARED_PREFS_UNIFIED_PUSH_BASE_URL = "UnifiedPushBaseURL" // Legacy key required for migration to DefaultBaseURL
         const val SHARED_PREFS_DEFAULT_BASE_URL = "DefaultBaseURL"
         const val SHARED_PREFS_LAST_TOPICS = "LastTopics"
+        const val SHARED_PREFS_SMS_TOPIC = "settings_general_sms_topic"
 
         private const val LAST_TOPICS_COUNT = 3
 

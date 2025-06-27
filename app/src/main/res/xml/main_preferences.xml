@@ -40,6 +40,11 @@
                 app:title="@string/settings_general_default_base_url_title"
                 app:dialogLayout="@layout/preference_dialog_edittext_edited"
                 app:dialogMessage="@string/settings_general_default_base_url_message"/>
+        <EditTextPreference
+                app:key="@string/settings_general_sms_topic_key"
+                app:title="@string/settings_general_sms_topic_title"
+                app:dialogLayout="@layout/preference_dialog_edittext_edited"
+                app:dialogMessage="@string/settings_general_sms_topic_message"/>
         <Preference
                 app:key="@string/settings_general_users_key"
                 app:title="@string/settings_general_users_title"

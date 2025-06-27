@@ -2,12 +2,16 @@ package io.heckel.ntfy.msg
 
 import android.content.Context
 import android.content.Intent
+import android.os.Bundle
+import android.provider.Telephony
+import android.telephony.SmsMessage
 import io.heckel.ntfy.R
 import io.heckel.ntfy.db.Action
 import io.heckel.ntfy.db.Notification
 import io.heckel.ntfy.db.Repository
 import io.heckel.ntfy.db.Subscription
 import io.heckel.ntfy.util.*
+import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
@@ -66,6 +70,7 @@ class BroadcastService(private val ctx: Context) {
             }
         }
 
+        @OptIn(DelicateCoroutinesApi::class)
         private fun send(ctx: Context, intent: Intent) {
             val api = ApiService()
             val baseUrl = getStringExtra(intent, "base_url") ?: ctx.getString(R.string.app_base_url)

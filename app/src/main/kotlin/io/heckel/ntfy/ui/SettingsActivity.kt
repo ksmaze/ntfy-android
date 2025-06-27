@@ -353,6 +353,26 @@ class SettingsActivity : AppCompatActivity(), PreferenceFragmentCompat.OnPrefere
                 }
             }
 
+            // SMS topic
+            val smsTopicPrefId = context?.getString(R.string.settings_general_sms_topic_key) ?: return
+            val smsTopic: EditTextPreference? = findPreference(smsTopicPrefId)
+            smsTopic?.text = repository.getSmsTopic() ?: ""
+            smsTopic?.preferenceDataStore = object : PreferenceDataStore() {
+                override fun putString(key: String, value: String?) {
+                    repository.setSmsTopic(value ?: "")
+                }
+                override fun getString(key: String, defValue: String?): String? {
+                    return repository.getSmsTopic()
+                }
+            }
+            smsTopic?.summaryProvider = Preference.SummaryProvider<EditTextPreference> { pref ->
+                if (TextUtils.isEmpty(pref.text)) {
+                    getString(R.string.settings_general_sms_topic_message)
+                } else {
+                    pref.text
+                }
+            }
+
             // Broadcast enabled
             val broadcastEnabledPrefId = context?.getString(R.string.settings_advanced_broadcast_key) ?: return
             val broadcastEnabled: SwitchPreference? = findPreference(broadcastEnabledPrefId)

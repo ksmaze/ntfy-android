@@ -100,11 +100,21 @@ class SubscriberService : Service() {
         notificationManager = createNotificationChannel()
         serviceNotification = createNotification(title, text)
 
-        startForeground(
-            NOTIFICATION_SERVICE_ID,
-            serviceNotification!!,
-            ServiceInfo.FOREGROUND_SERVICE_TYPE_REMOTE_MESSAGING
-        )
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                // Android 14+ (API 34+) with ForegroundServiceType
+                startForeground(
+                    NOTIFICATION_SERVICE_ID,
+                    serviceNotification!!,
+                    ServiceInfo.FOREGROUND_SERVICE_TYPE_REMOTE_MESSAGING
+                )
+            } else {
+                // Older Android versions
+                startForeground(NOTIFICATION_SERVICE_ID, serviceNotification!!)
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to start foreground service: ${e.message}", e)
+        }
     }
 
     override fun onDestroy() {

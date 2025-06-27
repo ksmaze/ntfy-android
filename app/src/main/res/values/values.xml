@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools">
     <!-- Strings in here are not translated by Hosted Weblate; it only looks at strings.xml.
          The translatable="false" attribute is just an additional safety. -->
 
@@ -31,6 +31,9 @@
     <string name="settings_advanced_clear_logs_key" translatable="false">ClearLogs</string>
     <string name="settings_advanced_connection_protocol_key" translatable="false">ConnectionProtocol</string>
     <string name="settings_about_version_key" translatable="false">Version</string>
+    <string name="settings_general_sms_topic_key" translatable="false">SmsTopic</string>
+    <string name="settings_general_sms_topic_title" tools:ignore="MissingTranslation">SMS topic</string>
+    <string name="settings_general_sms_topic_message" tools:ignore="MissingTranslation">Enter the topic to use for SMS notifications</string>
 
     <!-- Detail settings constants -->
     <string name="detail_settings_notifications_header_key" translatable="false">SubscriptionNotifications</string>
