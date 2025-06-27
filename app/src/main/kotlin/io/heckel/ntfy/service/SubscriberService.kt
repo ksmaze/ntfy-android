@@ -4,6 +4,7 @@ import android.app.*
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
 import android.os.PowerManager
@@ -28,6 +29,7 @@ import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import java.util.concurrent.ConcurrentHashMap
+import androidx.core.content.edit
 
 /**
  * The subscriber service manages the foreground service for instant delivery.
@@ -54,7 +56,7 @@ import java.util.concurrent.ConcurrentHashMap
  *
  * Largely modeled after this fantastic resource:
  * - https://robertohuertas.com/2019/06/29/android_foreground_services/
- * - https://github.com/robertohuertasm/endless-service/blob/master/app/src/main/java/com/robertohuertas/endless/EndlessService.kt
+ * - https://github.com/robertohuertasm/endless-service/blob/master/app/src/main/kotlin/com/robertohuertas/endless/EndlessService.kt
  * - https://gist.github.com/varunon9/f2beec0a743c96708eb0ef971a9ff9cd
  */
 class SubscriberService : Service() {
@@ -98,7 +100,11 @@ class SubscriberService : Service() {
         notificationManager = createNotificationChannel()
         serviceNotification = createNotification(title, text)
 
-        startForeground(NOTIFICATION_SERVICE_ID, serviceNotification)
+        startForeground(
+            NOTIFICATION_SERVICE_ID,
+            serviceNotification!!,
+            ServiceInfo.FOREGROUND_SERVICE_TYPE_REMOTE_MESSAGING
+        )
     }
 
     override fun onDestroy() {
@@ -173,7 +179,11 @@ class SubscriberService : Service() {
         val activeConnectionIds = connections.keys().toList().toSet()
         val desiredConnectionIds = instantSubscriptions // Set<ConnectionId>
             .groupBy { s -> ConnectionId(s.baseUrl, emptyMap(), emptyMap()) }
-            .map { entry -> entry.key.copy(topicsToSubscriptionIds = entry.value.associate { s -> s.topic to s.id }, topicIsUnifiedPush = entry.value.associate { s -> s.topic to (s.upConnectorToken != null) }) }
+            .map { entry ->
+                entry.key.copy(
+                    topicsToSubscriptionIds = entry.value.associate { s -> s.topic to s.id },
+                    topicIsUnifiedPush = entry.value.associate { s -> s.topic to (s.upConnectorToken != null) })
+            }
             .toSet()
         val newConnectionIds = desiredConnectionIds.subtract(activeConnectionIds)
         val obsoleteConnectionIds = activeConnectionIds.subtract(desiredConnectionIds)
@@ -202,12 +212,31 @@ class SubscriberService : Service() {
             val since = sinceByBaseUrl[connectionId.baseUrl] ?: "none"
             val serviceActive = { isServiceStarted }
             val user = repository.getUser(connectionId.baseUrl)
-            val connection = if (repository.getConnectionProtocol() == Repository.CONNECTION_PROTOCOL_WS) {
-                val alarmManager = getSystemService(ALARM_SERVICE) as AlarmManager
-                WsConnection(connectionId, repository, user, since, ::onStateChanged, ::onNotificationReceived, alarmManager)
-            } else {
-                JsonConnection(connectionId, scope, repository, api, user, since, ::onStateChanged, ::onNotificationReceived, serviceActive)
-            }
+            val connection =
+                if (repository.getConnectionProtocol() == Repository.CONNECTION_PROTOCOL_WS) {
+                    val alarmManager = getSystemService(ALARM_SERVICE) as AlarmManager
+                    WsConnection(
+                        connectionId,
+                        repository,
+                        user,
+                        since,
+                        ::onStateChanged,
+                        ::onNotificationReceived,
+                        alarmManager
+                    )
+                } else {
+                    JsonConnection(
+                        connectionId,
+                        scope,
+                        repository,
+                        api,
+                        user,
+                        since,
+                        ::onStateChanged,
+                        ::onNotificationReceived,
+                        serviceActive
+                    )
+                }
             connections[connectionId] = connection
             connection.start()
         }
@@ -219,7 +248,7 @@ class SubscriberService : Service() {
         }
 
         // Update foreground service notification popup
-        if (connections.size > 0) {
+        if (connections.isNotEmpty()) {
             val title = getString(R.string.channel_subscriber_notification_title)
             val text = if (BuildConfig.FIREBASE_AVAILABLE) {
                 when (instantSubscriptions.size) {
@@ -229,7 +258,10 @@ class SubscriberService : Service() {
                     4 -> getString(R.string.channel_subscriber_notification_instant_text_four)
                     5 -> getString(R.string.channel_subscriber_notification_instant_text_five)
                     6 -> getString(R.string.channel_subscriber_notification_instant_text_six)
-                    else -> getString(R.string.channel_subscriber_notification_instant_text_more, instantSubscriptions.size)
+                    else -> getString(
+                        R.string.channel_subscriber_notification_instant_text_more,
+                        instantSubscriptions.size
+                    )
                 }
             } else {
                 when (instantSubscriptions.size) {
@@ -239,7 +271,10 @@ class SubscriberService : Service() {
                     4 -> getString(R.string.channel_subscriber_notification_noinstant_text_four)
                     5 -> getString(R.string.channel_subscriber_notification_noinstant_text_five)
                     6 -> getString(R.string.channel_subscriber_notification_noinstant_text_six)
-                    else -> getString(R.string.channel_subscriber_notification_noinstant_text_more, instantSubscriptions.size)
+                    else -> getString(
+                        R.string.channel_subscriber_notification_noinstant_text_more,
+                        instantSubscriptions.size
+                    )
                 }
             }
             serviceNotification = createNotification(title, text)
@@ -251,7 +286,10 @@ class SubscriberService : Service() {
         repository.updateState(subscriptionIds, state)
     }
 
-    private fun onNotificationReceived(subscription: Subscription, notification: io.heckel.ntfy.db.Notification) {
+    private fun onNotificationReceived(
+        subscription: Subscription,
+        notification: io.heckel.ntfy.db.Notification
+    ) {
         // Wakelock while notifications are being dispatched
         // Wakelocks are reference counted by default so that should work neatly here
         wakeLock?.acquire(NOTIFICATION_RECEIVED_WAKELOCK_TIMEOUT_MILLIS)
@@ -272,23 +310,26 @@ class SubscriberService : Service() {
     }
 
     private fun createNotificationChannel(): NotificationManager? {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-            val channelName = getString(R.string.channel_subscriber_service_name) // Show's up in UI
-            val channel = NotificationChannel(NOTIFICATION_CHANNEL_ID, channelName, NotificationManager.IMPORTANCE_LOW).let {
-                it.setShowBadge(false) // Don't show long-press badge
-                it
-            }
-            notificationManager.createNotificationChannel(channel)
-            return notificationManager
+        val notificationManager =
+            getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        val channelName = getString(R.string.channel_subscriber_service_name) // Show's up in UI
+        val channel = NotificationChannel(
+            NOTIFICATION_CHANNEL_ID,
+            channelName,
+            NotificationManager.IMPORTANCE_LOW
+        ).let {
+            it.setShowBadge(false) // Don't show long-press badge
+            it
         }
-        return null
+        notificationManager.createNotificationChannel(channel)
+        return notificationManager
     }
 
     private fun createNotification(title: String, text: String): Notification {
-        val pendingIntent: PendingIntent = Intent(this, MainActivity::class.java).let { notificationIntent ->
-            PendingIntent.getActivity(this, 0, notificationIntent, PendingIntent.FLAG_IMMUTABLE)
-        }
+        val pendingIntent: PendingIntent =
+            Intent(this, MainActivity::class.java).let { notificationIntent ->
+                PendingIntent.getActivity(this, 0, notificationIntent, PendingIntent.FLAG_IMMUTABLE)
+            }
         return NotificationCompat.Builder(this, NOTIFICATION_CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_notification_instant)
             .setColor(ContextCompat.getColor(this, Colors.notificationIcon(this)))
@@ -311,10 +352,20 @@ class SubscriberService : Service() {
         val restartServiceIntent = Intent(applicationContext, SubscriberService::class.java).also {
             it.setPackage(packageName)
         }
-        val restartServicePendingIntent: PendingIntent = PendingIntent.getService(this, 1, restartServiceIntent, PendingIntent.FLAG_ONE_SHOT or PendingIntent.FLAG_IMMUTABLE)
+        val restartServicePendingIntent: PendingIntent = PendingIntent.getService(
+            this,
+            1,
+            restartServiceIntent,
+            PendingIntent.FLAG_ONE_SHOT or PendingIntent.FLAG_IMMUTABLE
+        )
         applicationContext.getSystemService(Context.ALARM_SERVICE)
-        val alarmService: AlarmManager = applicationContext.getSystemService(Context.ALARM_SERVICE) as AlarmManager
-        alarmService.set(AlarmManager.ELAPSED_REALTIME, SystemClock.elapsedRealtime() + 1000, restartServicePendingIntent)
+        val alarmService: AlarmManager =
+            applicationContext.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+        alarmService.set(
+            AlarmManager.ELAPSED_REALTIME,
+            SystemClock.elapsedRealtime() + 1000,
+            restartServicePendingIntent
+        )
     }
 
     /* This re-starts the service on reboot; see manifest */
@@ -349,21 +400,23 @@ class SubscriberService : Service() {
     companion object {
         const val TAG = "NtfySubscriberService"
         const val SERVICE_START_WORKER_VERSION = BuildConfig.VERSION_CODE
-        const val SERVICE_START_WORKER_WORK_NAME_PERIODIC = "NtfyAutoRestartWorkerPeriodic" // Do not change!
+        const val SERVICE_START_WORKER_WORK_NAME_PERIODIC =
+            "NtfyAutoRestartWorkerPeriodic" // Do not change!
 
         private const val WAKE_LOCK_TAG = "SubscriberService:lock"
         private const val NOTIFICATION_CHANNEL_ID = "ntfy-subscriber"
         private const val NOTIFICATION_GROUP_ID = "io.heckel.ntfy.NOTIFICATION_GROUP_SERVICE"
         private const val NOTIFICATION_SERVICE_ID = 2586
-        private const val NOTIFICATION_RECEIVED_WAKELOCK_TIMEOUT_MILLIS = 10*60*1000L /*10 minutes*/
+        private const val NOTIFICATION_RECEIVED_WAKELOCK_TIMEOUT_MILLIS =
+            10 * 60 * 1000L /*10 minutes*/
         private const val SHARED_PREFS_ID = "SubscriberService"
         private const val SHARED_PREFS_SERVICE_STATE = "ServiceState"
 
         fun saveServiceState(context: Context, state: ServiceState) {
             val sharedPrefs = context.getSharedPreferences(SHARED_PREFS_ID, Context.MODE_PRIVATE)
-            sharedPrefs.edit()
-                .putString(SHARED_PREFS_SERVICE_STATE, state.name)
-                .apply()
+            sharedPrefs.edit {
+                putString(SHARED_PREFS_SERVICE_STATE, state.name)
+            }
         }
 
         fun readServiceState(context: Context): ServiceState {

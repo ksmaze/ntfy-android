@@ -1,1 +1,3 @@
 -dontobfuscate
+-dontwarn io.heckel.ntfy.util.Emoji
+-dontwarn io.heckel.ntfy.util.EmojiManager

@@ -19,6 +19,10 @@ import android.widget.Toast
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.updatePadding
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.RecyclerView
@@ -70,8 +74,12 @@ class DetailActivity : AppCompatActivity(), ActionMode.Callback, NotificationFra
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        WindowCompat.setDecorFitsSystemWindows(window, false)
         setContentView(R.layout.activity_detail)
 
+        // Apply window insets to prevent content from being hidden behind system bars
+        applyWindowInsets()
+        
         Log.d(TAG, "Create $this")
 
         // Dependencies that depend on Context
@@ -763,6 +771,22 @@ class DetailActivity : AppCompatActivity(), ActionMode.Callback, NotificationFra
         val fromColor = ContextCompat.getColor(this, Colors.statusBarActionMode(this))
         val toColor = ContextCompat.getColor(this, Colors.statusBarNormal(this))
         fadeStatusBarColor(window, fromColor, toColor)
+    }
+    
+    private fun applyWindowInsets() {
+        val rootView = findViewById<View>(android.R.id.content)
+        ViewCompat.setOnApplyWindowInsetsListener(rootView) { view, windowInsets ->
+            val insets = windowInsets.getInsets(WindowInsetsCompat.Type.systemBars())
+            
+            // Apply insets to the main container
+            val mainContainer = findViewById<androidx.constraintlayout.widget.ConstraintLayout>(R.id.detail_container)
+            mainContainer?.updatePadding(
+                top = insets.top,
+                bottom = insets.bottom
+            )
+            
+            WindowInsetsCompat.CONSUMED
+        }
     }
 
     companion object {

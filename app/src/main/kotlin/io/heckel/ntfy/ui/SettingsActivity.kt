@@ -11,6 +11,7 @@ import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import android.text.TextUtils
+import android.view.View
 import android.widget.Button
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
@@ -19,6 +20,10 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.updatePadding
 import androidx.fragment.app.DialogFragment
 import androidx.lifecycle.lifecycleScope
 import androidx.preference.*
@@ -44,7 +49,7 @@ import java.util.concurrent.TimeUnit
  * Main settings
  *
  * The "nested screen" navigation stuff (for user management) has been taken from
- * https://github.com/googlearchive/android-preferences/blob/master/app/src/main/java/com/example/androidx/preference/sample/MainActivity.kt
+ * https://github.com/googlearchive/android-preferences/blob/master/app/src/main/kotlin/com/example/androidx/preference/sample/MainActivity.kt
  */
 class SettingsActivity : AppCompatActivity(), PreferenceFragmentCompat.OnPreferenceStartFragmentCallback,
     UserFragment.UserDialogListener {
@@ -56,7 +61,11 @@ class SettingsActivity : AppCompatActivity(), PreferenceFragmentCompat.OnPrefere
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        WindowCompat.setDecorFitsSystemWindows(window, false)
         setContentView(R.layout.activity_settings)
+        
+        // Apply window insets to prevent content from being hidden behind system bars
+        applyWindowInsets()
 
         Log.d(TAG, "Create $this")
 
@@ -807,6 +816,22 @@ class SettingsActivity : AppCompatActivity(), PreferenceFragmentCompat.OnPrefere
     private fun setAutoDownload() {
         if (!this::settingsFragment.isInitialized) return
         settingsFragment.setAutoDownload()
+    }
+    
+    private fun applyWindowInsets() {
+        val rootView = findViewById<View>(android.R.id.content)
+        ViewCompat.setOnApplyWindowInsetsListener(rootView) { view, windowInsets ->
+            val insets = windowInsets.getInsets(WindowInsetsCompat.Type.systemBars())
+            
+            // Apply insets to the main container
+            val settingsContainer = findViewById<android.widget.LinearLayout>(R.id.settings_container)
+            settingsContainer?.updatePadding(
+                top = insets.top,
+                bottom = insets.bottom
+            )
+            
+            WindowInsetsCompat.CONSUMED
+        }
     }
 
     companion object {

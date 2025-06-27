@@ -9,12 +9,17 @@ import android.net.Uri
 import android.os.Bundle
 import android.provider.Settings
 import android.text.TextUtils
+import android.view.View
 import android.widget.Toast
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.FileProvider
 import androidx.core.graphics.drawable.toDrawable
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.updatePadding
 import androidx.lifecycle.lifecycleScope
 import androidx.preference.*
 import androidx.preference.Preference.OnPreferenceClickListener
@@ -43,7 +48,11 @@ class DetailSettingsActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        WindowCompat.setDecorFitsSystemWindows(window, false)
         setContentView(R.layout.activity_settings)
+        
+        // Apply window insets to prevent content from being hidden behind system bars
+        applyWindowInsets()
 
         Log.d(TAG, "Create $this")
 
@@ -74,6 +83,22 @@ class DetailSettingsActivity : AppCompatActivity() {
     override fun onSupportNavigateUp(): Boolean {
         finish() // Return to previous activity when nav "back" is pressed!
         return true
+    }
+    
+    private fun applyWindowInsets() {
+        val rootView = findViewById<View>(android.R.id.content)
+        ViewCompat.setOnApplyWindowInsetsListener(rootView) { view, windowInsets ->
+            val insets = windowInsets.getInsets(WindowInsetsCompat.Type.systemBars())
+            
+            // Apply insets to the main container
+            val settingsContainer = findViewById<android.widget.LinearLayout>(R.id.settings_container)
+            settingsContainer?.updatePadding(
+                top = insets.top,
+                bottom = insets.bottom
+            )
+            
+            WindowInsetsCompat.CONSUMED
+        }
     }
 
     class SettingsFragment : PreferenceFragmentCompat() {

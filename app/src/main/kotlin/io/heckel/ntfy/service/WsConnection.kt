@@ -28,7 +28,7 @@ import kotlin.random.Random
  * and forwards incoming messages via the notificationListener.
  *
  * The original class is taken from the fantastic Gotify project (MIT). Thank you:
- * https://github.com/gotify/android/blob/master/app/src/main/java/com/github/gotify/service/WebSocketConnection.java
+ * https://github.com/gotify/android/blob/master/app/src/main/kotlin/com/github/gotify/service/WebSocketConnection.kotlin
  */
 class WsConnection(
     private val connectionId: ConnectionId,

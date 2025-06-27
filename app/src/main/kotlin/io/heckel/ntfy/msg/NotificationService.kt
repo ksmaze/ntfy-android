@@ -9,7 +9,6 @@ import android.media.AudioAttributes
 import android.media.AudioManager
 import android.media.RingtoneManager
 import android.net.Uri
-import android.os.Build
 import android.os.Bundle
 import android.widget.Toast
 import androidx.core.app.NotificationCompat
@@ -22,6 +21,7 @@ import io.heckel.ntfy.ui.DetailActivity
 import io.heckel.ntfy.ui.MainActivity
 import io.heckel.ntfy.util.*
 import java.util.*
+import androidx.core.net.toUri
 
 class NotificationService(val context: Context) {
     private val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
@@ -33,11 +33,8 @@ class NotificationService(val context: Context) {
     }
 
     fun update(subscription: Subscription, notification: Notification) {
-        val active = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+        val active =
             notificationManager.activeNotifications.find { it.id == notification.notificationId } != null
-        } else {
-            true
-        }
         if (active) {
             Log.d(TAG, "Updating notification $notification")
             displayInternal(subscription, notification, update = true)
@@ -76,7 +73,7 @@ class NotificationService(val context: Context) {
     }
 
     fun channelsSupported(): Boolean {
-        return Build.VERSION.SDK_INT >= Build.VERSION_CODES.O
+        return true
     }
 
     private fun subscriptionGroupId(subscription: Subscription): String {
@@ -258,13 +255,33 @@ class NotificationService(val context: Context) {
     }
 
     private fun maybeAddUserActions(builder: NotificationCompat.Builder, notification: Notification) {
-        notification.actions?.forEach { action ->
+        val actions = notification.actions
+        if (actions == null || actions.isEmpty()) {
+            val message = notification.message.trim()
+            val url = extractUrlFromText(message)
+            if (url != null) {
+                Log.d(TAG, "Extracted URL from message: $url")
+                val urlAction = Action(
+                    id = UUID.randomUUID().toString(),
+                    action = ACTION_VIEW,
+                    label = context.getString(R.string.notification_popup_action_open),
+                    clear = false,
+                    url = url,
+                    method = null,
+                    headers = null,
+                    body = null,
+                    intent = null,
+                    extras = null,
+                    progress = null,
+                    error = null
+                )
+                addViewUserActionWithoutClear(builder, urlAction)
+                return
+            }
+        }
+        actions?.forEach { action ->
             val actionType = action.action.lowercase(Locale.getDefault())
             if (actionType == ACTION_VIEW) {
-                // Hack: Action "view" with "clear=true" is a special case, because it's apparently impossible to start a
-                // URL activity from PendingIntent.getActivity() and also close the notification. To clear it, we
-                // launch our own Activity (ViewActionWithClearActivity) which then calls the actual activity
-
                 if (action.clear == true) {
                     addViewUserActionWithClear(builder, notification, action)
                 } else {
@@ -283,7 +300,7 @@ class NotificationService(val context: Context) {
     private fun addViewUserActionWithoutClear(builder: NotificationCompat.Builder, action: Action) {
         try {
             val url = action.url ?: return
-            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url)).apply {
+            val intent = Intent(Intent.ACTION_VIEW, url.toUri()).apply {
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
             }
             val pendingIntent = PendingIntent.getActivity(context, Random().nextInt(), intent, PendingIntent.FLAG_IMMUTABLE)
@@ -311,6 +328,7 @@ class NotificationService(val context: Context) {
             Log.w(TAG, "Unable to add open user action", e)
         }
     }
+
 
     private fun addHttpOrBroadcastUserAction(builder: NotificationCompat.Builder, notification: Notification, action: Action) {
         val intent = Intent(context, UserActionBroadcastReceiver::class.java).apply {
@@ -539,5 +557,13 @@ class NotificationService(val context: Context) {
 
         private const val VIEW_ACTION_EXTRA_URL = "url"
         private const val VIEW_ACTION_EXTRA_NOTIFICATION_ID = "notificationId"
+    }
+
+    private fun extractUrlFromText(text: String): String? {
+        val urlPattern = Regex("""(https?://[\w\-._~:/?#\[\]@!$&'()*+,;=%]+)|(www\.[\w\-._~:/?#\[\]@!$&'()*+,;=%]+)|([\w\-]+\.[a-zA-Z]{2,}(/[\w\-._~:/?#\[\]@!$&'()*+,;=%]*)?)""")
+        val match = urlPattern.find(text)
+        return match?.value?.let { url ->
+            if (url.startsWith("http://") || url.startsWith("https://")) url else "https://$url"
+        }
     }
 }

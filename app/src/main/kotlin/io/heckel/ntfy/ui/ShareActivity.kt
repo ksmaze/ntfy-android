@@ -9,6 +9,10 @@ import android.text.TextWatcher
 import android.view.*
 import android.widget.*
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.updatePadding
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.textfield.TextInputLayout
@@ -49,7 +53,11 @@ class ShareActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        WindowCompat.setDecorFitsSystemWindows(window, false)
         setContentView(R.layout.activity_share)
+
+        // Apply window insets to prevent content from being hidden behind system bars
+        applyWindowInsets()
 
         Log.init(this) // Init logs in all entry points
         Log.d(TAG, "Create $this with intent $intent")
@@ -145,9 +153,13 @@ class ShareActivity : AppCompatActivity() {
                 }
             }
 
-            // Add baseUrl auto-complete behavior
+            // Set topicText.text to the first suggested topic
             val activity = this@ShareActivity
             activity.runOnUiThread {
+                topicText.text = suggestedTopics.firstOrNull()?.let {
+                    val (_, topic) = splitTopicUrl(it)
+                    topic
+                } ?: ""
                 initBaseUrlDropdown(baseUrls, baseUrlText, baseUrlLayout)
                 useAnotherServerCheckbox.isChecked = if (suggestedTopics.isNotEmpty()) {
                     try {
@@ -333,6 +345,21 @@ class ShareActivity : AppCompatActivity() {
             baseUrlText.text.toString()
         } else {
             defaultBaseUrl ?: appBaseUrl
+        }
+    }
+    
+    private fun applyWindowInsets() {
+        val rootView = findViewById<ScrollView>(R.id.share_scroll_container)
+        ViewCompat.setOnApplyWindowInsetsListener(rootView) { view, windowInsets ->
+            val insets = windowInsets.getInsets(WindowInsetsCompat.Type.systemBars())
+            
+            // Apply insets to the root ScrollView
+            rootView.updatePadding(
+                top = insets.top,
+                bottom = insets.bottom
+            )
+            
+            WindowInsetsCompat.CONSUMED
         }
     }
 

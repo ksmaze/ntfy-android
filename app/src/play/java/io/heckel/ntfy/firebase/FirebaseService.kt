@@ -6,6 +6,7 @@ import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
 import io.heckel.ntfy.R
 import io.heckel.ntfy.app.Application
+import io.heckel.ntfy.db.Action
 import io.heckel.ntfy.db.Attachment
 import io.heckel.ntfy.db.Icon
 import io.heckel.ntfy.db.Notification
@@ -22,6 +23,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import kotlin.random.Random
+import java.util.UUID
+import java.util.regex.Pattern
 
 class FirebaseService : FirebaseMessagingService() {
     private val repository by lazy { (application as Application).repository }

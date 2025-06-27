@@ -396,7 +396,7 @@ class ContentUriRequestBody(
 // Hack: Make end icon for drop down smaller, see https://stackoverflow.com/a/57098715/1440785
 fun View.makeEndIconSmaller(resources: Resources) {
     val dimension = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 30f, resources.displayMetrics)
-    val endIconImageView = findViewById<ImageView>(R.id.text_input_end_icon)
+    val endIconImageView = findViewById<ImageView>(com.google.android.material.R.id.text_input_end_icon)
     endIconImageView.minimumHeight = dimension.toInt()
     endIconImageView.minimumWidth = dimension.toInt()
     requestLayout()

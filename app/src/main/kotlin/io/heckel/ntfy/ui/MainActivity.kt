@@ -24,6 +24,10 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.updatePadding
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.RecyclerView
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
@@ -74,8 +78,12 @@ class MainActivity : AppCompatActivity(), ActionMode.Callback, AddFragment.Subsc
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        WindowCompat.setDecorFitsSystemWindows(window, false)
         setContentView(R.layout.activity_main)
 
+        // Apply window insets to prevent content from being hidden behind system bars
+        applyWindowInsets()
+        
         Log.init(this) // Init logs in all entry points
         Log.d(TAG, "Create $this")
 
@@ -687,6 +695,30 @@ class MainActivity : AppCompatActivity(), ActionMode.Callback, AddFragment.Subsc
             return
         }
         adapter.notifyItemRangeChanged(0, adapter.currentList.size)
+    }
+    
+    private fun applyWindowInsets() {
+        val rootView = findViewById<View>(android.R.id.content)
+        ViewCompat.setOnApplyWindowInsetsListener(rootView) { view, windowInsets ->
+            val insets = windowInsets.getInsets(WindowInsetsCompat.Type.systemBars())
+            
+            // Apply insets to the main container
+            val mainContainer = findViewById<androidx.constraintlayout.widget.ConstraintLayout>(R.id.main_container)
+            mainContainer?.updatePadding(
+                top = insets.top,
+                bottom = insets.bottom
+            )
+            
+            // Adjust FAB to account for navigation bar
+            val fab = findViewById<FloatingActionButton>(R.id.fab)
+            fab?.let {
+                val fabParams = it.layoutParams as androidx.constraintlayout.widget.ConstraintLayout.LayoutParams
+                fabParams.bottomMargin = 24 + insets.bottom
+                it.layoutParams = fabParams
+            }
+            
+            WindowInsetsCompat.CONSUMED
+        }
     }
 
     companion object {
