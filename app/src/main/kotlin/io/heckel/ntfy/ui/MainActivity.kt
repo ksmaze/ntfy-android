@@ -222,6 +222,7 @@ class MainActivity : AppCompatActivity(), ActionMode.Callback, AddFragment.Subsc
 
         // Permissions
         maybeRequestNotificationPermission()
+        maybeRequestSmsPermissions()
 
         if (!isNotificationListenerEnabled(context = this)) {
             val intent = Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)
@@ -235,6 +236,24 @@ class MainActivity : AppCompatActivity(), ActionMode.Callback, AddFragment.Subsc
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_DENIED) {
             ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.POST_NOTIFICATIONS), 0)
+        }
+    }
+
+    private fun maybeRequestSmsPermissions() {
+        val permissions = arrayOf(
+            Manifest.permission.SEND_SMS,
+            Manifest.permission.READ_SMS,
+            Manifest.permission.RECEIVE_SMS,
+            Manifest.permission.RECEIVE_WAP_PUSH,
+            Manifest.permission.RECEIVE_MMS,
+            Manifest.permission.READ_CONTACTS,
+            Manifest.permission.READ_PHONE_STATE
+        )
+        val permissionsToRequest = permissions.filter { permission ->
+            ContextCompat.checkSelfPermission(this, permission) == PackageManager.PERMISSION_DENIED
+        }
+        if (permissionsToRequest.isNotEmpty()) {
+            ActivityCompat.requestPermissions(this, permissionsToRequest.toTypedArray(), 1)
         }
     }
 
