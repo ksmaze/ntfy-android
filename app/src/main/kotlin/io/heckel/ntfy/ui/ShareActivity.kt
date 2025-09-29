@@ -1,5 +1,7 @@
 package io.heckel.ntfy.ui
 
+import android.content.ClipboardManager
+import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
@@ -51,6 +53,9 @@ class ShareActivity : AppCompatActivity() {
     private lateinit var errorText: TextView
     private lateinit var errorImage: ImageView
 
+    // State
+    private var clipboardPopulateAttempted = false
+    private var clipboardPopulateAttemptedOnFocus = false
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         WindowCompat.setDecorFitsSystemWindows(window, false)
@@ -178,6 +183,7 @@ class ShareActivity : AppCompatActivity() {
 
         // Incoming intent
         val intent = intent ?: return
+        maybePopulateFromClipboard(intent)
         val type = intent.type ?: return
         if (intent.action != Intent.ACTION_SEND) return
         if (type == "text/plain") {
@@ -189,11 +195,136 @@ class ShareActivity : AppCompatActivity() {
         }
     }
 
+    override fun onResume() {
+        super.onResume()
+        // Try again once we're foregrounded; on some Android versions/OEMs clipboard is only
+        // accessible after the activity is resumed/focused.
+        attemptPopulateFromClipboardOnForeground()
+    }
+
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        if (hasFocus) {
+            // Final fallback: some devices only succeed once the window is fully focused
+            attemptPopulateFromClipboardOnFocus()
+        }
+    }
+
     private fun handleSendText(intent: Intent) {
         val text = intent.getStringExtra(Intent.EXTRA_TEXT) ?: "(no text)"
         Log.d(TAG, "Shared content is text: $text")
         contentText.text = text
         show()
+    }
+
+    private fun maybePopulateFromClipboard(intent: Intent) {
+        if (!intent.getBooleanExtra(EXTRA_LOAD_CLIPBOARD, false)) {
+            return
+        }
+
+        val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
+        val has = clipboard?.hasPrimaryClip() == true
+        val desc = clipboard?.primaryClipDescription
+        val mimeCount = desc?.mimeTypeCount ?: 0
+        val mimeTypes = (0 until mimeCount).joinToString(",") { i -> desc?.getMimeType(i).orEmpty() }
+        val itemCount = clipboard?.primaryClip?.itemCount ?: 0
+        Log.d(TAG, "Clipboard state (onCreate): has=$has items=$itemCount mimes=${if (mimeTypes.isEmpty()) "-" else mimeTypes}")
+        val clipText = clipboard?.primaryClip
+            ?.takeIf { it.itemCount > 0 }
+            ?.getItemAt(0)
+            ?.coerceToText(this)
+            ?.toString()
+
+        if (!clipText.isNullOrBlank()) {
+            intent.putExtra(Intent.EXTRA_TEXT, clipText)
+            Log.d(TAG, "Populated share intent from clipboard: $clipText")
+        } else {
+            Log.d(TAG, "Clipboard empty when requested via shortcut")
+        }
+    }
+
+    private fun attemptPopulateFromClipboardOnForeground() {
+        if (clipboardPopulateAttempted) return
+        if (!intent.getBooleanExtra(EXTRA_LOAD_CLIPBOARD, false)) {
+            clipboardPopulateAttempted = true
+            return
+        }
+
+        val existing = intent.getStringExtra(Intent.EXTRA_TEXT)
+        val currentContent = if (this::contentText.isInitialized) contentText.text?.toString().orEmpty() else ""
+        // If we already have meaningful content, don't overwrite it
+        if (!existing.isNullOrBlank() && currentContent.isNotBlank() && currentContent != "(no text)") {
+            clipboardPopulateAttempted = true
+            return
+        }
+
+        val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
+        val has = clipboard?.hasPrimaryClip() == true
+        val desc = clipboard?.primaryClipDescription
+        val mimeCount = desc?.mimeTypeCount ?: 0
+        val mimeTypes = (0 until mimeCount).joinToString(",") { i -> desc?.getMimeType(i).orEmpty() }
+        val itemCount = clipboard?.primaryClip?.itemCount ?: 0
+        Log.d(TAG, "Clipboard state (onResume): has=$has items=$itemCount mimes=${if (mimeTypes.isEmpty()) "-" else mimeTypes}")
+        val clipText = clipboard?.primaryClip
+            ?.takeIf { it.itemCount > 0 }
+            ?.getItemAt(0)
+            ?.coerceToText(this)
+            ?.toString()
+
+        if (!clipText.isNullOrBlank()) {
+            intent.putExtra(Intent.EXTRA_TEXT, clipText)
+            Log.d(TAG, "Populated share intent from clipboard (onResume): $clipText")
+            if (intent.action == Intent.ACTION_SEND && (intent.type == "text/plain" || intent.type?.startsWith("text/") == true)) {
+                contentText.text = clipText
+                show()
+                validateInput()
+            }
+        } else {
+            Log.d(TAG, "Clipboard empty when requested via shortcut (onResume)")
+        }
+        clipboardPopulateAttempted = true
+    }
+
+    private fun attemptPopulateFromClipboardOnFocus() {
+        if (clipboardPopulateAttemptedOnFocus) return
+        if (!intent.getBooleanExtra(EXTRA_LOAD_CLIPBOARD, false)) {
+            clipboardPopulateAttemptedOnFocus = true
+            return
+        }
+
+        val existing = intent.getStringExtra(Intent.EXTRA_TEXT)
+        val currentContent = if (this::contentText.isInitialized) contentText.text?.toString().orEmpty() else ""
+        if (!existing.isNullOrBlank() && currentContent.isNotBlank() && currentContent != "(no text)") {
+            clipboardPopulateAttemptedOnFocus = true
+            return
+        }
+
+        val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
+        val has = clipboard?.hasPrimaryClip() == true
+        val desc = clipboard?.primaryClipDescription
+        val mimeCount = desc?.mimeTypeCount ?: 0
+        val mimeTypes = (0 until mimeCount).joinToString(",") { i -> desc?.getMimeType(i).orEmpty() }
+        val itemCount = clipboard?.primaryClip?.itemCount ?: 0
+        Log.d(TAG, "Clipboard state (onWindowFocus): has=$has items=$itemCount mimes=${if (mimeTypes.isEmpty()) "-" else mimeTypes}")
+
+        val clipText = clipboard?.primaryClip
+            ?.takeIf { it.itemCount > 0 }
+            ?.getItemAt(0)
+            ?.coerceToText(this)
+            ?.toString()
+
+        if (!clipText.isNullOrBlank()) {
+            intent.putExtra(Intent.EXTRA_TEXT, clipText)
+            Log.d(TAG, "Populated share intent from clipboard (onWindowFocus): $clipText")
+            if (intent.action == Intent.ACTION_SEND && (intent.type == "text/plain" || intent.type?.startsWith("text/") == true)) {
+                contentText.text = clipText
+                show()
+                validateInput()
+            }
+        } else {
+            Log.d(TAG, "Clipboard empty when requested via shortcut (onWindowFocus)")
+        }
+        clipboardPopulateAttemptedOnFocus = true
     }
 
     private fun handleSendImage(intent: Intent) {
@@ -255,6 +386,14 @@ class ShareActivity : AppCompatActivity() {
         return when (item.itemId) {
             R.id.share_menu_send -> {
                 onShareClick()
+                true
+            }
+            R.id.share_menu_paste -> {
+                onPasteClick()
+                true
+            }
+            R.id.share_menu_clipboard_info -> {
+                showClipboardInfo()
                 true
             }
             else -> super.onOptionsItemSelected(item)
@@ -327,6 +466,46 @@ class ShareActivity : AppCompatActivity() {
         }
     }
 
+    private fun onPasteClick() {
+        val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
+        val has = clipboard?.hasPrimaryClip() == true
+        val desc = clipboard?.primaryClipDescription
+        val mimeCount = desc?.mimeTypeCount ?: 0
+        val mimeTypes = (0 until mimeCount).joinToString(",") { i -> desc?.getMimeType(i).orEmpty() }
+        val itemCount = clipboard?.primaryClip?.itemCount ?: 0
+        Log.d(TAG, "Clipboard state (onPasteClick): has=$has items=$itemCount mimes=${if (mimeTypes.isEmpty()) "-" else mimeTypes}")
+
+        val clipText = clipboard?.primaryClip
+            ?.takeIf { it.itemCount > 0 }
+            ?.getItemAt(0)
+            ?.coerceToText(this)
+            ?.toString()
+        if (!clipText.isNullOrBlank()) {
+            contentText.text = clipText
+            intent.putExtra(Intent.EXTRA_TEXT, clipText)
+            show()
+            validateInput()
+        } else {
+            Toast.makeText(this, getString(R.string.shortcut_clipboard_share_empty), Toast.LENGTH_LONG).show()
+        }
+    }
+
+    private fun showClipboardInfo() {
+        val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
+        val has = clipboard?.hasPrimaryClip() == true
+        val desc = clipboard?.primaryClipDescription
+        val mimeCount = desc?.mimeTypeCount ?: 0
+        val mimeTypes = (0 until mimeCount).joinToString(",") { i -> desc?.getMimeType(i).orEmpty() }
+        val itemCount = clipboard?.primaryClip?.itemCount ?: 0
+        val msg = getString(
+            R.string.share_clipboard_info,
+            has.toString(),
+            itemCount,
+            if (mimeTypes.isEmpty()) "-" else mimeTypes
+        )
+        Toast.makeText(this, msg, Toast.LENGTH_LONG).show()
+    }
+
     private fun validateInput() {
         if (!this::sendItem.isInitialized || !this::useAnotherServerCheckbox.isInitialized || !this::contentText.isInitialized || !this::topicText.isInitialized) {
             return // sendItem is initialized late in onCreateOptionsMenu
@@ -382,6 +561,7 @@ class ShareActivity : AppCompatActivity() {
     }
 
     companion object {
+        const val EXTRA_LOAD_CLIPBOARD = "io.heckel.ntfy.extra.LOAD_CLIPBOARD"
         const val TAG = "NtfyShareActivity"
     }
 }

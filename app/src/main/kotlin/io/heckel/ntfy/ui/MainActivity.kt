@@ -222,12 +222,11 @@ class MainActivity : AppCompatActivity(), ActionMode.Callback, AddFragment.Subsc
 
         // Permissions
         maybeRequestNotificationPermission()
+//        if (!isNotificationListenerEnabled(context = this)) {
+//            val intent = Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)
+//            startActivity(intent)
+//        }
         maybeRequestSmsPermissions()
-
-        if (!isNotificationListenerEnabled(context = this)) {
-            val intent = Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)
-            startActivity(intent)
-        }
     }
 
     private fun maybeRequestNotificationPermission() {

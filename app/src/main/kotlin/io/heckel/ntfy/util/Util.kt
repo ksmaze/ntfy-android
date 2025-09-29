@@ -32,6 +32,7 @@ import io.heckel.ntfy.R
 import io.heckel.ntfy.db.*
 import io.heckel.ntfy.msg.MESSAGE_ENCODING_BASE64
 import io.heckel.ntfy.ui.Colors
+import io.heckel.ntfy.util.emoji.EmojiManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay

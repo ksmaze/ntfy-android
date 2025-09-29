@@ -47,7 +47,7 @@ class SubscriberServiceManager(private val context: Context) {
                 val app = context.applicationContext as Application
                 val subscriptionIdsWithInstantStatus = app.repository.getSubscriptionIdsWithInstantStatus()
                 val instantSubscriptions = subscriptionIdsWithInstantStatus.toList().filter { (_, instant) -> instant }.size
-                val action = if (instantSubscriptions > 0) SubscriberService.Action.START else SubscriberService.Action.STOP
+                val action = SubscriberService.Action.STOP
                 val serviceState = SubscriberService.readServiceState(context)
                 if (serviceState == SubscriberService.ServiceState.STOPPED && action == SubscriberService.Action.STOP) {
                     return@withContext Result.success()

@@ -15,6 +15,7 @@ app/release/
 # built application files
 *.apk
 *.ap_
+.kotlin/
 
 # Mac files
 .DS_Store

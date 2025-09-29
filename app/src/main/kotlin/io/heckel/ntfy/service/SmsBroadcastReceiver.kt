@@ -33,27 +33,26 @@ class SmsBroadcastReceiver : BroadcastReceiver() {
         val baseUrl = context.getString(R.string.app_base_url)
 
 
-        for (message in messages) {
-            val sender = message.originatingAddress ?: continue
-            val body = message.messageBody ?: continue
-            val contactName = getContactName(context, sender)
-            val title = if (contactName != null) "SMS from $contactName ($sender)" else "SMS from $sender"
+        val firstMessage = messages.firstOrNull() ?: return
+        val sender = firstMessage.originatingAddress ?: return
+        val body = messages.joinToString("") { it.messageBody }
+        val contactName = getContactName(context, sender)
+        val title = if (contactName != null) "SMS from $contactName ($sender)" else "SMS from $sender"
 
-            scope.launch {
-                val user = repository.getUser(baseUrl) // May be null
-                try {
-                    api.publish(
-                        baseUrl = baseUrl,
-                        topic = topic,
-                        user = user,
-                        message = body,
-                        title = title,
-                        tags = listOf("sms"),
-                    )
-                    Log.d(TAG, "Forwarded SMS from $sender to $topic")
-                } catch (e: Exception) {
-                    Log.e(TAG, "Failed to forward SMS to $topic", e)
-                }
+        scope.launch {
+            val user = repository.getUser(baseUrl) // May be null
+            try {
+                api.publish(
+                    baseUrl = baseUrl,
+                    topic = topic,
+                    user = user,
+                    message = body,
+                    title = title,
+                    tags = listOf("sms"),
+                )
+                Log.d(TAG, "Forwarded SMS from $sender to $topic")
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to forward SMS to $topic", e)
             }
         }
     }

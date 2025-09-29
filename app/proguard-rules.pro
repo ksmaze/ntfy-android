@@ -1,3 +1,4 @@
+-keep class io.heckel.ntfy.util.emoji.Emoji
+-keep class io.heckel.ntfy.util.emoji.EmojiManager
+-keep class io.heckel.ntfy.util.emoji.EmojiLoader
 -dontobfuscate
--dontwarn io.heckel.ntfy.util.Emoji
--dontwarn io.heckel.ntfy.util.EmojiManager

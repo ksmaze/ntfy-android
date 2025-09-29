@@ -197,6 +197,8 @@
     <!-- Share activity -->
     <string name="share_title">Share</string>
     <string name="share_menu_send">Share</string>
+    <string name="share_menu_paste">Paste from clipboard</string>
+    <string name="share_menu_clipboard_info">Clipboard info</string>
     <string name="share_content_title">Message preview</string>
     <string name="share_content_text_hint">Add content to share here</string>
     <string name="share_content_image_text">An image was shared with you</string>
@@ -206,6 +208,12 @@
     <string name="share_topic_title">Share to</string>
     <string name="share_suggested_topics">Suggested topics</string>
     <string name="share_successful">Message published</string>
+    <string name="share_clipboard_info">Clipboard: has=%1$s items=%2$d mimes=%3$s</string>
+
+    <!-- Shortcuts -->
+    <string name="shortcut_clipboard_share_short_label">Share clipboard</string>
+    <string name="shortcut_clipboard_share_long_label">Share clipboard text</string>
+    <string name="shortcut_clipboard_share_empty">Clipboard is empty</string>
 
     <!-- Notification dialog -->
     <string name="notification_dialog_title">Mute notifications</string>
