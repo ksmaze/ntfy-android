@@ -56,7 +56,7 @@ import androidx.core.content.edit
  *
  * Largely modeled after this fantastic resource:
  * - https://robertohuertas.com/2019/06/29/android_foreground_services/
- * - https://github.com/robertohuertasm/endless-service/blob/master/app/src/main/kotlin/com/robertohuertas/endless/EndlessService.kt
+ * - https://github.com/robertohuertasm/endless-service/blob/master/app/src/main/java/com/robertohuertas/endless/EndlessService.kt
  * - https://gist.github.com/varunon9/f2beec0a743c96708eb0ef971a9ff9cd
  */
 class SubscriberService : Service() {
@@ -188,12 +188,8 @@ class SubscriberService : Service() {
             .filter { s -> s.instant }
         val activeConnectionIds = connections.keys().toList().toSet()
         val desiredConnectionIds = instantSubscriptions // Set<ConnectionId>
-            .groupBy { s -> ConnectionId(s.baseUrl, emptyMap(), emptyMap()) }
-            .map { entry ->
-                entry.key.copy(
-                    topicsToSubscriptionIds = entry.value.associate { s -> s.topic to s.id },
-                    topicIsUnifiedPush = entry.value.associate { s -> s.topic to (s.upConnectorToken != null) })
-            }
+            .groupBy { s -> ConnectionId(s.baseUrl, emptyMap()) }
+            .map { entry -> entry.key.copy(topicsToSubscriptionIds = entry.value.associate { s -> s.topic to s.id }) }
             .toSet()
         val newConnectionIds = desiredConnectionIds.subtract(activeConnectionIds)
         val obsoleteConnectionIds = activeConnectionIds.subtract(desiredConnectionIds)

@@ -30,6 +30,9 @@ app/release/
 bin/
 gen/
 
+# Ignore .kotlin files
+.kotlin/
+
 # Ignore gradle files
 .gradle/
 

@@ -10,6 +10,8 @@ import android.media.AudioManager
 import android.media.RingtoneManager
 import android.net.Uri
 import android.os.Bundle
+import android.text.SpannedString
+import android.text.style.CharacterStyle
 import android.widget.Toast
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
@@ -26,6 +28,7 @@ import androidx.core.net.toUri
 class NotificationService(val context: Context) {
     private val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
     private val repository = Repository.getInstance(context)
+    private val markwon = MarkwonFactory.createForNotification(context)
 
     fun display(subscription: Subscription, notification: Notification) {
         Log.d(TAG, "Displaying notification $notification")
@@ -144,7 +147,7 @@ class NotificationService(val context: Context) {
             try {
                 val attachmentBitmap = contentUri.readBitmapFromUri(context)
                 builder
-                    .setContentText(maybeAppendActionErrors(formatMessage(notification), notification))
+                    .setContentText(maybeAppendActionErrors(maybeMarkdown(formatMessage(notification), notification), notification))
                     .setLargeIcon(attachmentBitmap)
                     .setStyle(NotificationCompat.BigPictureStyle()
                         .bigPicture(attachmentBitmap)
@@ -164,8 +167,8 @@ class NotificationService(val context: Context) {
         }
     }
 
-    private fun formatMessageMaybeWithAttachmentInfos(notification: Notification): String {
-        val message = formatMessage(notification)
+    private fun formatMessageMaybeWithAttachmentInfos(notification: Notification): CharSequence {
+        val message = maybeMarkdown(formatMessage(notification), notification)
         val attachment = notification.attachment ?: return message
         val attachmentInfos = if (attachment.size != null) {
             "${attachment.name}, ${formatBytes(attachment.size)}"
@@ -530,6 +533,13 @@ class NotificationService(val context: Context) {
             // Close this activity
             finish()
         }
+    }
+
+    private fun maybeMarkdown(message: String, notification: Notification): CharSequence {
+        if (notification.contentType == "text/markdown") {
+            return markwon.toMarkdown(message)
+        }
+        return message
     }
 
     companion object {

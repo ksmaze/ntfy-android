@@ -5,7 +5,7 @@ buildscript {
         mavenCentral()
     }
     dependencies {
-        classpath 'com.android.tools.build:gradle:8.11.2'
+        classpath 'com.android.tools.build:gradle:8.13.0'
         classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
         classpath 'com.google.gms:google-services:4.3.15' // This is removed in the "fdroid" flavor
         classpath "com.google.devtools.ksp:com.google.devtools.ksp.gradle.plugin:2.1.21-2.0.2" // KSP plugin
@@ -13,6 +13,10 @@ buildscript {
         // NOTE: Do not place your application dependencies here; they belong
         // in the individual module build.gradle files
     }
+}
+
+plugins {
+    id 'com.google.devtools.ksp' version '2.1.21-2.0.2'
 }
 
 allprojects {
