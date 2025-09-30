@@ -215,6 +215,9 @@
     <string name="shortcut_clipboard_share_long_label">Share clipboard text</string>
     <string name="shortcut_clipboard_share_empty">Clipboard is empty</string>
 
+    <!-- Quick Settings Tile -->
+    <string name="tile_clipboard_share_label">Share clipboard</string>
+
     <!-- Notification dialog -->
     <string name="notification_dialog_title">Mute notifications</string>
     <string name="notification_dialog_cancel">Cancel</string>

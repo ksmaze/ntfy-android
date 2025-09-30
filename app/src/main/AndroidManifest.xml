@@ -171,6 +171,18 @@
                 android:name="com.google.firebase.messaging.default_notification_icon"
                 android:resource="@drawable/ic_notification"/>
 
+        <!-- Quick Settings Tile for sharing clipboard content -->
+        <service
+                android:name=".tile.ClipboardShareTileService"
+                android:exported="true"
+                android:icon="@mipmap/ic_launcher"
+                android:label="@string/tile_clipboard_share_label"
+                android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
+
         <!-- FileProvider required for older Android versions (<= P), to allow passing the file URI in the open intent.
              Avoids "exposed beyond app through Intent.getData" exception, see see https://stackoverflow.com/a/57288352/1440785 -->
         <provider
