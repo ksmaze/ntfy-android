@@ -23,7 +23,6 @@
 
     <application
             android:name=".app.Application"
-            android:allowBackup="true"
             android:icon="@mipmap/ic_launcher"
             android:label="@string/app_name"
             android:roundIcon="@mipmap/ic_launcher"
@@ -39,7 +38,7 @@
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
-                <category android:name="android.intent.category.LAUNCHER"/>
+                <category android:name="android.intent.category.LAUNCHER"/>/
             </intent-filter>
 
             <meta-data
@@ -126,7 +125,7 @@
                 android:enabled="true"
                 android:exported="true">
             <intent-filter>
-                <action android:name="io.heckel.ntfy.SEND_MESSAGE"/>
+                <action android:name="io.heckel.ntfy.ksmaze.SEND_MESSAGE"/>
             </intent-filter>
         </receiver>
 

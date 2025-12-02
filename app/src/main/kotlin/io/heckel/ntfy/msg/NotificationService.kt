@@ -551,9 +551,9 @@ class NotificationService(val context: Context) {
         const val BROADCAST_EXTRA_NOTIFICATION_ID = "notificationId"
         const val BROADCAST_EXTRA_ACTION_ID = "actionId"
 
-        const val BROADCAST_TYPE_DOWNLOAD_START = "io.heckel.ntfy.DOWNLOAD_ACTION_START"
-        const val BROADCAST_TYPE_DOWNLOAD_CANCEL = "io.heckel.ntfy.DOWNLOAD_ACTION_CANCEL"
-        const val BROADCAST_TYPE_USER_ACTION = "io.heckel.ntfy.USER_ACTION_RUN"
+        const val BROADCAST_TYPE_DOWNLOAD_START = "io.heckel.ntfy.ksmaze.DOWNLOAD_ACTION_START"
+        const val BROADCAST_TYPE_DOWNLOAD_CANCEL = "io.heckel.ntfy.ksmaze.DOWNLOAD_ACTION_CANCEL"
+        const val BROADCAST_TYPE_USER_ACTION = "io.heckel.ntfy.ksmaze.USER_ACTION_RUN"
 
         private const val TAG = "NtfyNotifService"
 

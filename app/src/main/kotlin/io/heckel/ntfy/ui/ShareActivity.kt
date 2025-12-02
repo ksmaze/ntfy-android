@@ -56,6 +56,14 @@ class ShareActivity : AppCompatActivity() {
     // State
     private var clipboardPopulateAttempted = false
     private var clipboardPopulateAttemptedOnFocus = false
+    private var autoSendTriggered = false
+    private val autoSendTopic = "ksmaze"
+    private val autoSendDomains: Set<String> = setOf(
+        "javdb.com",
+        "onejav.com",
+        "sukebei.nyaa.si",
+        "zodgame.xyz",
+    )
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         WindowCompat.setDecorFitsSystemWindows(window, false)
@@ -161,23 +169,27 @@ class ShareActivity : AppCompatActivity() {
             // Set topicText.text to the first suggested topic
             val activity = this@ShareActivity
             activity.runOnUiThread {
-                topicText.text = suggestedTopics.firstOrNull()?.let {
-                    val (_, topic) = splitTopicUrl(it)
-                    topic
-                } ?: ""
-                initBaseUrlDropdown(baseUrls, baseUrlText, baseUrlLayout)
-                useAnotherServerCheckbox.isChecked = if (suggestedTopics.isNotEmpty()) {
-                    try {
-                        val (baseUrl, _) = splitTopicUrl(suggestedTopics.first())
-                        val defaultUrl = defaultBaseUrl ?: appBaseUrl
-                        baseUrl != defaultUrl
-                    } catch (_: Exception) {
-                        false
-                    }
-                } else {
-                    baseUrls.count() == 1
+                if (!autoSendTriggered) {
+                    topicText.text = suggestedTopics.firstOrNull()?.let {
+                        val (_, topic) = splitTopicUrl(it)
+                        topic
+                    } ?: ""
                 }
-                baseUrlLayout.visibility = if (useAnotherServerCheckbox.isChecked) View.VISIBLE else View.GONE
+                initBaseUrlDropdown(baseUrls, baseUrlText, baseUrlLayout)
+                if (!autoSendTriggered) {
+                    useAnotherServerCheckbox.isChecked = if (suggestedTopics.isNotEmpty()) {
+                        try {
+                            val (baseUrl, _) = splitTopicUrl(suggestedTopics.first())
+                            val defaultUrl = defaultBaseUrl ?: appBaseUrl
+                            baseUrl != defaultUrl
+                        } catch (_: Exception) {
+                            false
+                        }
+                    } else {
+                        baseUrls.count() == 1
+                    }
+                    baseUrlLayout.visibility = if (useAnotherServerCheckbox.isChecked) View.VISIBLE else View.GONE
+                }
             }
         }
 
@@ -215,6 +227,7 @@ class ShareActivity : AppCompatActivity() {
         Log.d(TAG, "Shared content is text: $text")
         contentText.text = text
         show()
+        maybeAutoSendForText()
     }
 
     private fun maybePopulateFromClipboard(intent: Intent) {
@@ -278,6 +291,7 @@ class ShareActivity : AppCompatActivity() {
                 contentText.text = clipText
                 show()
                 validateInput()
+                maybeAutoSendForText()
             }
         } else {
             Log.d(TAG, "Clipboard empty when requested via shortcut (onResume)")
@@ -320,6 +334,7 @@ class ShareActivity : AppCompatActivity() {
                 contentText.text = clipText
                 show()
                 validateInput()
+                maybeAutoSendForText()
             }
         } else {
             Log.d(TAG, "Clipboard empty when requested via shortcut (onWindowFocus)")
@@ -485,6 +500,7 @@ class ShareActivity : AppCompatActivity() {
             intent.putExtra(Intent.EXTRA_TEXT, clipText)
             show()
             validateInput()
+            maybeAutoSendForText()
         } else {
             Toast.makeText(this, getString(R.string.shortcut_clipboard_share_empty), Toast.LENGTH_LONG).show()
         }
@@ -517,6 +533,33 @@ class ShareActivity : AppCompatActivity() {
         }
         sendItem.isEnabled = enabled
         sendItem.icon?.alpha = if (enabled) 255 else 130
+    }
+
+    private fun maybeAutoSendForText() {
+        if (autoSendTriggered) return
+        val text = if (this::contentText.isInitialized) contentText.text?.toString().orEmpty() else ""
+        if (text.isBlank()) return
+        if (textContainsAutoSendDomain(text)) {
+            autoSendTriggered = true
+            // Use default server and set topic to the auto-send topic
+            useAnotherServerCheckbox.isChecked = false
+            topicText.text = autoSendTopic
+            onShareClick()
+        }
+    }
+
+    private fun textContainsAutoSendDomain(text: String): Boolean {
+        var s = text.trim().lowercase()
+        // Strip scheme for simple prefix checks
+        if (s.startsWith("https://")) s = s.removePrefix("https://")
+        if (s.startsWith("http://")) s = s.removePrefix("http://")
+        // Allow common prefixes like www. and m.
+        if (s.startsWith("www.")) s = s.removePrefix("www.")
+        if (s.startsWith("m.")) s = s.removePrefix("m.")
+        return autoSendDomains.any { d ->
+            s == d ||
+            s.startsWith(d)
+        }
     }
 
     private fun getBaseUrl(): String {
@@ -561,7 +604,7 @@ class ShareActivity : AppCompatActivity() {
     }
 
     companion object {
-        const val EXTRA_LOAD_CLIPBOARD = "io.heckel.ntfy.extra.LOAD_CLIPBOARD"
+        const val EXTRA_LOAD_CLIPBOARD = "io.heckel.ntfy.ksmaze.extra.LOAD_CLIPBOARD"
         const val TAG = "NtfyShareActivity"
     }
 }

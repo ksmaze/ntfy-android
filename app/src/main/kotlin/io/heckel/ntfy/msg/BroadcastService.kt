@@ -129,8 +129,8 @@ class BroadcastService(private val ctx: Context) {
         private const val DOES_NOT_EXIST = -2586000
 
         // These constants cannot be changed without breaking the contract; also see manifest
-        private const val MESSAGE_RECEIVED_ACTION = "io.heckel.ntfy.MESSAGE_RECEIVED"
-        private const val MESSAGE_SEND_ACTION = "io.heckel.ntfy.SEND_MESSAGE"
-        private const val USER_ACTION_ACTION = "io.heckel.ntfy.USER_ACTION"
+        private const val MESSAGE_RECEIVED_ACTION = "io.heckel.ntfy.ksmaze.MESSAGE_RECEIVED"
+        private const val MESSAGE_SEND_ACTION = "io.heckel.ntfy.ksmaze.SEND_MESSAGE"
+        private const val USER_ACTION_ACTION = "io.heckel.ntfy.ksmaze.USER_ACTION"
     }
 }

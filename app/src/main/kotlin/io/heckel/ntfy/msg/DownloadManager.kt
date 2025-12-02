@@ -15,9 +15,9 @@ import io.heckel.ntfy.util.Log
  */
 object DownloadManager {
     private const val TAG = "NtfyDownloadManager"
-    private const val DOWNLOAD_WORK_ATTACHMENT_NAME_PREFIX = "io.heckel.ntfy.DOWNLOAD_FILE_"
-    private const val DOWNLOAD_WORK_ICON_NAME_PREFIX = "io.heckel.ntfy.DOWNLOAD_ICON_"
-    private const val DOWNLOAD_WORK_BOTH_NAME_PREFIX = "io.heckel.ntfy.DOWNLOAD_BOTH_"
+    private const val DOWNLOAD_WORK_ATTACHMENT_NAME_PREFIX = "io.heckel.ntfy.ksmaze.DOWNLOAD_FILE_"
+    private const val DOWNLOAD_WORK_ICON_NAME_PREFIX = "io.heckel.ntfy.ksmaze.DOWNLOAD_ICON_"
+    private const val DOWNLOAD_WORK_BOTH_NAME_PREFIX = "io.heckel.ntfy.ksmaze.DOWNLOAD_BOTH_"
 
     fun enqueue(context: Context, notificationId: String, userAction: Boolean, type: DownloadType) {
         when (type) {
