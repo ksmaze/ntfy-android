@@ -3,15 +3,14 @@ package io.heckel.ntfy.ui
 import android.app.AlertDialog
 import android.app.Dialog
 import android.content.Context
+import android.animation.Animator
+import android.animation.AnimatorListenerAdapter
+import android.animation.ValueAnimator
 import android.os.Bundle
 import android.widget.RadioButton
 import androidx.fragment.app.DialogFragment
-import androidx.lifecycle.lifecycleScope
 import io.heckel.ntfy.R
 import io.heckel.ntfy.db.Repository
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 import java.util.*
 
 class NotificationFragment : DialogFragment() {
@@ -84,11 +83,16 @@ class NotificationFragment : DialogFragment() {
     }
 
     private fun onClick(mutedUntilTimestamp: Long) {
-        lifecycleScope.launch(Dispatchers.Main) {
-            delay(150) // Another hack: Let the animation finish before dismissing the window
-            settingsListener?.onNotificationMutedUntilChanged(mutedUntilTimestamp)
-            dismiss()
-        }
+        val delay = resources.getInteger(android.R.integer.config_shortAnimTime).toLong()
+        val animator = ValueAnimator.ofFloat(0f, 1f)
+        animator.duration = delay
+        animator.addListener(object : AnimatorListenerAdapter() {
+            override fun onAnimationEnd(animation: Animator) {
+                settingsListener?.onNotificationMutedUntilChanged(mutedUntilTimestamp)
+                dismiss()
+            }
+        })
+        animator.start()
     }
 
     companion object {
