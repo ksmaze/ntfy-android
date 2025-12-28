@@ -10,11 +10,13 @@ import android.text.Editable
 import android.text.TextWatcher
 import android.view.*
 import android.widget.*
+import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.updatePadding
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.textfield.TextInputLayout
@@ -24,6 +26,8 @@ import io.heckel.ntfy.msg.ApiService
 import io.heckel.ntfy.util.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import androidx.core.view.size
+import androidx.core.view.get
 
 class ShareActivity : AppCompatActivity() {
     private val repository by lazy { (application as Application).repository }
@@ -65,18 +69,32 @@ class ShareActivity : AppCompatActivity() {
         "zodgame.xyz",
     )
     override fun onCreate(savedInstanceState: Bundle?) {
+        enableEdgeToEdge()
         super.onCreate(savedInstanceState)
         WindowCompat.setDecorFitsSystemWindows(window, false)
         setContentView(R.layout.activity_share)
-
-        // Apply window insets to prevent content from being hidden behind system bars
-        applyWindowInsets()
 
         Log.init(this) // Init logs in all entry points
         Log.d(TAG, "Create $this with intent $intent")
 
         // Action bar
+        val toolbarLayout = findViewById<View>(R.id.app_bar_drawer)
+        val dynamicColors = repository.getDynamicColorsEnabled()
+        val darkMode = isDarkThemeOn(this)
+        val statusBarColor = Colors.statusBarNormal(this, dynamicColors, darkMode)
+        val toolbarTextColor = Colors.toolbarTextColor(this, dynamicColors, darkMode)
+        toolbarLayout.setBackgroundColor(statusBarColor)
+
+        val toolbar = toolbarLayout.findViewById<com.google.android.material.appbar.MaterialToolbar>(R.id.toolbar)
+        toolbar.setTitleTextColor(toolbarTextColor)
+        toolbar.setNavigationIconTint(toolbarTextColor)
+        toolbar.overflowIcon?.setTint(toolbarTextColor)
+        setSupportActionBar(toolbar)
         title = getString(R.string.share_title)
+
+        // Set system status bar appearance
+        WindowInsetsControllerCompat(window, window.decorView).isAppearanceLightStatusBars =
+            Colors.shouldUseLightStatusBar(dynamicColors, darkMode)
 
         // Show 'Back' button
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
@@ -393,6 +411,13 @@ class ShareActivity : AppCompatActivity() {
         menuInflater.inflate(R.menu.menu_share_action_bar, menu)
         this.menu = menu
         sendItem = menu.findItem(R.id.share_menu_send)
+
+        // Tint menu icons based on theme
+        val toolbarTextColor = Colors.toolbarTextColor(this, repository.getDynamicColorsEnabled(), isDarkThemeOn(this))
+        for (i in 0 until menu.size) {
+            menu[i].icon?.setTint(toolbarTextColor)
+        }
+
         validateInput() // Disable icon
         return true
     }
@@ -567,21 +592,6 @@ class ShareActivity : AppCompatActivity() {
             baseUrlText.text.toString()
         } else {
             defaultBaseUrl ?: appBaseUrl
-        }
-    }
-    
-    private fun applyWindowInsets() {
-        val rootView = findViewById<ScrollView>(R.id.share_scroll_container)
-        ViewCompat.setOnApplyWindowInsetsListener(rootView) { view, windowInsets ->
-            val insets = windowInsets.getInsets(WindowInsetsCompat.Type.systemBars())
-            
-            // Apply insets to the root ScrollView
-            rootView.updatePadding(
-                top = insets.top,
-                bottom = insets.bottom
-            )
-            
-            WindowInsetsCompat.CONSUMED
         }
     }
 

@@ -327,7 +327,6 @@
     <string name="detail_settings_about_header">Относно</string>
     <string name="detail_settings_about_topic_url_title">Адрес на темата</string>
     <string name="detail_settings_about_topic_url_copied_to_clipboard_message">Копирано в междинната памет</string>
-    <string name="main_menu_donate_title">Даряване 💸</string>
     <string name="detail_item_cannot_open_apk">Ntfy не може да инсталира получени приложения. Вместо това изтеглете чрез браузъра. За подробности вижте дефект №531.</string>
     <string name="channel_notifications_group_default_name">Подразбирани</string>
     <string name="detail_settings_notifications_dedicated_channels_title">Потребителски настройки за известия</string>
@@ -350,4 +349,7 @@
     <string name="settings_advanced_exact_alarms_title">Будилници в точно време</string>
     <string name="settings_advanced_exact_alarms_true">ntfy може да насрочва будилници в точно определено време. Те са задължителни за повторно свързване на WebSockets във фонов режим. За да оттеглите разрешението докоснете.</string>
     <string name="settings_advanced_exact_alarms_false">ntfy не може да насрочва будилници в точно определено време. Те са задължителни за повторно свързване на WebSockets във фонов режим. За да разрешите докоснете.</string>
+    <string name="settings_general_dynamic_colors_title">Динамични цветове</string>
+    <string name="settings_general_dynamic_colors_summary_enabled">Използване на динамичните системни цветове</string>
+    <string name="settings_general_dynamic_colors_summary_disabled">Използване на цветовете от темата на ntfy</string>
 </resources>

@@ -2,10 +2,8 @@ package io.heckel.ntfy.ui
 
 import android.Manifest
 import android.app.AlarmManager
-import android.app.AlertDialog
 import android.content.ClipData
 import android.content.ClipboardManager
-import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
@@ -16,6 +14,7 @@ import android.text.TextUtils
 import android.view.View
 import android.widget.Button
 import android.widget.Toast
+import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.Keep
 import androidx.appcompat.app.AppCompatActivity
@@ -26,10 +25,12 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.updatePadding
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.fragment.app.DialogFragment
 import androidx.lifecycle.lifecycleScope
 import androidx.preference.*
 import androidx.preference.Preference.OnPreferenceClickListener
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.gson.Gson
 import io.heckel.ntfy.BuildConfig
 import io.heckel.ntfy.R
@@ -62,17 +63,36 @@ class SettingsActivity : AppCompatActivity(), PreferenceFragmentCompat.OnPrefere
     private lateinit var serviceManager: SubscriberServiceManager
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        enableEdgeToEdge()
         super.onCreate(savedInstanceState)
         WindowCompat.setDecorFitsSystemWindows(window, false)
         setContentView(R.layout.activity_settings)
-        
-        // Apply window insets to prevent content from being hidden behind system bars
-        applyWindowInsets()
 
         Log.d(TAG, "Create $this")
 
         repository = Repository.getInstance(this)
         serviceManager = SubscriberServiceManager(this)
+
+        val toolbarLayout = findViewById<View>(R.id.app_bar_drawer)
+        val dynamicColors = repository.getDynamicColorsEnabled()
+        val darkMode = isDarkThemeOn(this)
+        val statusBarColor = Colors.statusBarNormal(
+            this,
+            dynamicColors,
+            darkMode
+        )
+        val toolbarTextColor = Colors.toolbarTextColor(this, dynamicColors, darkMode)
+        toolbarLayout.setBackgroundColor(statusBarColor)
+
+        val toolbar = toolbarLayout.findViewById<com.google.android.material.appbar.MaterialToolbar>(R.id.toolbar)
+        toolbar.setTitleTextColor(toolbarTextColor)
+        toolbar.setNavigationIconTint(toolbarTextColor)
+        toolbar.overflowIcon?.setTint(toolbarTextColor)
+        setSupportActionBar(toolbar)
+
+        // Set system status bar appearance
+        WindowInsetsControllerCompat(window, window.decorView).isAppearanceLightStatusBars =
+            Colors.shouldUseLightStatusBar(dynamicColors, darkMode)
 
         if (savedInstanceState == null) {
             settingsFragment = SettingsFragment() // Empty constructor!
@@ -137,7 +157,7 @@ class SettingsActivity : AppCompatActivity(), PreferenceFragmentCompat.OnPrefere
         }
     }
 
-    class SettingsFragment : PreferenceFragmentCompat() {
+    class SettingsFragment : BasePreferenceFragment() {
         private lateinit var repository: Repository
         private lateinit var serviceManager: SubscriberServiceManager
         private var autoDownloadSelection = AUTO_DOWNLOAD_SELECTION_NOT_SET
@@ -220,7 +240,7 @@ class SettingsActivity : AppCompatActivity(), PreferenceFragmentCompat.OnPrefere
 
             // Keep alerting for max priority
             val insistentMaxPriorityPrefId = context?.getString(R.string.settings_notifications_insistent_max_priority_key) ?: return
-            val insistentMaxPriority: SwitchPreference? = findPreference(insistentMaxPriorityPrefId)
+            val insistentMaxPriority: SwitchPreferenceCompat? = findPreference(insistentMaxPriorityPrefId)
             insistentMaxPriority?.isChecked = repository.getInsistentMaxPriorityEnabled()
             insistentMaxPriority?.preferenceDataStore = object : PreferenceDataStore() {
                 override fun putBoolean(key: String?, value: Boolean) {
@@ -230,7 +250,7 @@ class SettingsActivity : AppCompatActivity(), PreferenceFragmentCompat.OnPrefere
                     return repository.getInsistentMaxPriorityEnabled()
                 }
             }
-            insistentMaxPriority?.summaryProvider = Preference.SummaryProvider<SwitchPreference> { pref ->
+            insistentMaxPriority?.summaryProvider = Preference.SummaryProvider<SwitchPreferenceCompat> { pref ->
                 if (pref.isChecked) {
                     getString(R.string.settings_notifications_insistent_max_priority_summary_enabled)
                 } else {
@@ -241,14 +261,11 @@ class SettingsActivity : AppCompatActivity(), PreferenceFragmentCompat.OnPrefere
             // Channel settings
             val channelPrefsPrefId = context?.getString(R.string.settings_notifications_channel_prefs_key) ?: return
             val channelPrefs: Preference? = findPreference(channelPrefsPrefId)
-            channelPrefs?.isVisible = Build.VERSION.SDK_INT >= Build.VERSION_CODES.O
             channelPrefs?.preferenceDataStore = object : PreferenceDataStore() { } // Dummy store to protect from accidentally overwriting
             channelPrefs?.onPreferenceClickListener = OnPreferenceClickListener {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    startActivity(Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
-                        putExtra(Settings.EXTRA_APP_PACKAGE, BuildConfig.APPLICATION_ID)
-                    })
-                }
+                startActivity(Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
+                    putExtra(Settings.EXTRA_APP_PACKAGE, BuildConfig.APPLICATION_ID)
+                })
                 false
             }
 
@@ -333,11 +350,45 @@ class SettingsActivity : AppCompatActivity(), PreferenceFragmentCompat.OnPrefere
                 }
             }
 
+            // Dynamic colors
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                val dynamicColorsEnabledPrefId = context?.getString(R.string.settings_general_dynamic_colors_key) ?: return
+                val dynamicColorsEnabled: SwitchPreferenceCompat? = findPreference(dynamicColorsEnabledPrefId)
+                dynamicColorsEnabled?.isChecked = repository.getDynamicColorsEnabled()
+                dynamicColorsEnabled?.preferenceDataStore = object : PreferenceDataStore() {
+                    override fun putBoolean(key: String?, value: Boolean) {
+                        repository.setDynamicColorsEnabled(value)
+
+                        // Restart app
+                        val packageManager = requireContext().packageManager
+                        val packageName = requireContext().packageName
+                        val intent = packageManager.getLaunchIntentForPackage(packageName)
+                        val componentName = intent!!.component
+                        val mainIntent = Intent.makeRestartActivityTask(componentName)
+                        startActivity(mainIntent)
+                        Runtime.getRuntime().exit(0)
+                    }
+                    override fun getBoolean(key: String?, defValue: Boolean): Boolean {
+                        return repository.getDynamicColorsEnabled()
+                    }
+                }
+                dynamicColorsEnabled?.summaryProvider = Preference.SummaryProvider<SwitchPreferenceCompat> { pref ->
+                    if (pref.isChecked) {
+                        getString(R.string.settings_general_dynamic_colors_summary_enabled)
+                    } else {
+                        getString(R.string.settings_general_dynamic_colors_summary_disabled)
+                    }
+                }
+                dynamicColorsEnabled?.isVisible = true
+            }
+
             // Default Base URL
             val appBaseUrl = getString(R.string.app_base_url)
             val defaultBaseUrlPrefId = context?.getString(R.string.settings_general_default_base_url_key) ?: return
             val defaultBaseUrl: EditTextPreference? = findPreference(defaultBaseUrlPrefId)
             defaultBaseUrl?.text = repository.getDefaultBaseUrl() ?: ""
+            defaultBaseUrl?.extras?.putString("message", getString(R.string.settings_general_default_base_url_message))
+            defaultBaseUrl?.extras?.putString("hint", getString(R.string.app_base_url))
             defaultBaseUrl?.preferenceDataStore = object : PreferenceDataStore() {
                 override fun putString(key: String, value: String?) {
                     val baseUrl = value ?: return
@@ -384,7 +435,7 @@ class SettingsActivity : AppCompatActivity(), PreferenceFragmentCompat.OnPrefere
 
             // Broadcast enabled
             val broadcastEnabledPrefId = context?.getString(R.string.settings_advanced_broadcast_key) ?: return
-            val broadcastEnabled: SwitchPreference? = findPreference(broadcastEnabledPrefId)
+            val broadcastEnabled: SwitchPreferenceCompat? = findPreference(broadcastEnabledPrefId)
             broadcastEnabled?.isChecked = repository.getBroadcastEnabled()
             broadcastEnabled?.preferenceDataStore = object : PreferenceDataStore() {
                 override fun putBoolean(key: String?, value: Boolean) {
@@ -394,7 +445,7 @@ class SettingsActivity : AppCompatActivity(), PreferenceFragmentCompat.OnPrefere
                     return repository.getBroadcastEnabled()
                 }
             }
-            broadcastEnabled?.summaryProvider = Preference.SummaryProvider<SwitchPreference> { pref ->
+            broadcastEnabled?.summaryProvider = Preference.SummaryProvider<SwitchPreferenceCompat> { pref ->
                 if (pref.isChecked) {
                     getString(R.string.settings_advanced_broadcast_summary_enabled)
                 } else {
@@ -404,7 +455,7 @@ class SettingsActivity : AppCompatActivity(), PreferenceFragmentCompat.OnPrefere
 
             // Enable UnifiedPush
             val unifiedPushEnabledPrefId = context?.getString(R.string.settings_advanced_unifiedpush_key) ?: return
-            val unifiedPushEnabled: SwitchPreference? = findPreference(unifiedPushEnabledPrefId)
+            val unifiedPushEnabled: SwitchPreferenceCompat? = findPreference(unifiedPushEnabledPrefId)
             unifiedPushEnabled?.isChecked = repository.getUnifiedPushEnabled()
             unifiedPushEnabled?.preferenceDataStore = object : PreferenceDataStore() {
                 override fun putBoolean(key: String?, value: Boolean) {
@@ -414,7 +465,7 @@ class SettingsActivity : AppCompatActivity(), PreferenceFragmentCompat.OnPrefere
                     return repository.getUnifiedPushEnabled()
                 }
             }
-            unifiedPushEnabled?.summaryProvider = Preference.SummaryProvider<SwitchPreference> { pref ->
+            unifiedPushEnabled?.summaryProvider = Preference.SummaryProvider<SwitchPreferenceCompat> { pref ->
                 if (pref.isChecked) {
                     getString(R.string.settings_advanced_unifiedpush_summary_enabled)
                 } else {
@@ -449,7 +500,7 @@ class SettingsActivity : AppCompatActivity(), PreferenceFragmentCompat.OnPrefere
 
             // Record logs
             val recordLogsPrefId = context?.getString(R.string.settings_advanced_record_logs_key) ?: return
-            val recordLogsEnabled: SwitchPreference? = findPreference(recordLogsPrefId)
+            val recordLogsEnabled: SwitchPreferenceCompat? = findPreference(recordLogsPrefId)
             recordLogsEnabled?.isChecked = Log.getRecord()
             recordLogsEnabled?.preferenceDataStore = object : PreferenceDataStore() {
                 override fun putBoolean(key: String?, value: Boolean) {
@@ -462,7 +513,7 @@ class SettingsActivity : AppCompatActivity(), PreferenceFragmentCompat.OnPrefere
                     return Log.getRecord()
                 }
             }
-            recordLogsEnabled?.summaryProvider = Preference.SummaryProvider<SwitchPreference> { pref ->
+            recordLogsEnabled?.summaryProvider = Preference.SummaryProvider<SwitchPreferenceCompat> { pref ->
                 if (pref.isChecked) {
                     getString(R.string.settings_advanced_record_logs_summary_enabled)
                 } else {
@@ -593,7 +644,7 @@ class SettingsActivity : AppCompatActivity(), PreferenceFragmentCompat.OnPrefere
             versionPref?.summary = version
             versionPref?.onPreferenceClickListener = OnPreferenceClickListener {
                 val context = context ?: return@OnPreferenceClickListener false
-                val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                val clipboard = context.getSystemService(CLIPBOARD_SERVICE) as ClipboardManager
                 val clip = ClipData.newPlainText("ntfy version", version)
                 clipboard.setPrimaryClip(clip)
                 Toast
@@ -621,7 +672,7 @@ class SettingsActivity : AppCompatActivity(), PreferenceFragmentCompat.OnPrefere
                 val context = context ?: return@launch
                 val log = Log.getFormatted(context, scrub = scrub)
                 requireActivity().runOnUiThread {
-                    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                    val clipboard = context.getSystemService(CLIPBOARD_SERVICE) as ClipboardManager
                     val clip = ClipData.newPlainText("ntfy logs", log)
                     clipboard.setPrimaryClip(clip)
                     if (scrub) {
@@ -663,12 +714,12 @@ class SettingsActivity : AppCompatActivity(), PreferenceFragmentCompat.OnPrefere
                         if (!response.isSuccessful) {
                             throw Exception("Unexpected response ${response.code}")
                         }
-                        val body = response.body?.string()?.trim()
-                        if (body.isNullOrEmpty()) throw Exception("Return body is empty")
+                        val body = response.body.string().trim()
+                        if (body.isEmpty()) throw Exception("Return body is empty")
                         Log.d(TAG, "Logs uploaded successfully: $body")
-                        val resp = gson.fromJson(body.toString(), NopasteResponse::class.java)
+                        val resp = gson.fromJson(body, NopasteResponse::class.java)
                         requireActivity().runOnUiThread {
-                            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                            val clipboard = context.getSystemService(CLIPBOARD_SERVICE) as ClipboardManager
                             val clip = ClipData.newPlainText("logs URL", resp.url)
                             clipboard.setPrimaryClip(clip)
                             if (scrub) {
@@ -699,7 +750,7 @@ class SettingsActivity : AppCompatActivity(), PreferenceFragmentCompat.OnPrefere
             } else {
                 getString(R.string.settings_advanced_export_logs_scrub_dialog_empty)
             }
-            val dialog = AlertDialog.Builder(activity)
+            val dialog = MaterialAlertDialogBuilder(requireContext())
                 .setTitle(title)
                 .setMessage(scrubbedText)
                 .setPositiveButton(R.string.settings_advanced_export_logs_scrub_dialog_button_ok) { _, _ -> /* Nothing */ }
@@ -740,7 +791,7 @@ class SettingsActivity : AppCompatActivity(), PreferenceFragmentCompat.OnPrefere
         data class NopasteResponse(val url: String)
     }
 
-    class UserSettingsFragment : PreferenceFragmentCompat() {
+    class UserSettingsFragment : BasePreferenceFragment() {
         private lateinit var repository: Repository
 
         override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
@@ -865,22 +916,6 @@ class SettingsActivity : AppCompatActivity(), PreferenceFragmentCompat.OnPrefere
     private fun setAutoDownload() {
         if (!this::settingsFragment.isInitialized) return
         settingsFragment.setAutoDownload()
-    }
-    
-    private fun applyWindowInsets() {
-        val rootView = findViewById<View>(android.R.id.content)
-        ViewCompat.setOnApplyWindowInsetsListener(rootView) { view, windowInsets ->
-            val insets = windowInsets.getInsets(WindowInsetsCompat.Type.systemBars())
-            
-            // Apply insets to the main container
-            val settingsContainer = findViewById<android.widget.LinearLayout>(R.id.settings_container)
-            settingsContainer?.updatePadding(
-                top = insets.top,
-                bottom = insets.bottom
-            )
-            
-            WindowInsetsCompat.CONSUMED
-        }
     }
 
     companion object {

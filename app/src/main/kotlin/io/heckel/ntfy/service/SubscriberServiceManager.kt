@@ -47,30 +47,40 @@ class SubscriberServiceManager(private val context: Context) {
                 val app = context.applicationContext as Application
                 val subscriptionIdsWithInstantStatus = app.repository.getSubscriptionIdsWithInstantStatus()
                 val instantSubscriptions = subscriptionIdsWithInstantStatus.toList().filter { (_, instant) -> instant }.size
-                val action = SubscriberService.Action.STOP
-                val serviceState = SubscriberService.readServiceState(context)
-                if (serviceState == SubscriberService.ServiceState.STOPPED && action == SubscriberService.Action.STOP) {
-                    return@withContext Result.success()
-                }
-                Log.d(TAG, "ServiceStartWorker: Starting foreground service with action $action (work ID: ${id})")
-                
-                // Handle foreground service start based on Android version
-                Intent(context, SubscriberService::class.java).also {
-                    it.action = action.name
-                    
-                    try {
-                        // For Android 14+ (API 34+), use different approaches based on the situation
-                        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-                            // Since we're in a WorkManager context (background), we can't directly start 
-                            // a foreground service in Android 14+. Instead, we'll start a regular service,
-                            // and it will promote itself to foreground in onCreate().
-                            context.startService(it)
-                        } else {
-                            // For older Android versions, we can use startForegroundService
-                            ContextCompat.startForegroundService(context, it)
+                if (instantSubscriptions > 0) {
+                    // We have instant subscriptions, start the service
+                    val action = SubscriberService.Action.STOP
+                    val serviceState = SubscriberService.readServiceState(context)
+                    if (serviceState == SubscriberService.ServiceState.STOPPED && action == SubscriberService.Action.STOP) {
+                        return@withContext Result.success()
+                    }
+                    Log.d(TAG, "ServiceStartWorker: Starting foreground service with action $action (work ID: ${id})")
+
+                    // Handle foreground service start based on Android version
+                    Intent(context, SubscriberService::class.java).also {
+                        it.action = action.name
+
+                        try {
+                            // For Android 14+ (API 34+), use different approaches based on the situation
+                            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                                // Since we're in a WorkManager context (background), we can't directly start
+                                // a foreground service in Android 14+. Instead, we'll start a regular service,
+                                // and it will promote itself to foreground in onCreate().
+                                context.startService(it)
+                            } else {
+                                // For older Android versions, we can use startForegroundService
+                                ContextCompat.startForegroundService(context, it)
+                            }
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Failed to start service: ${e.message}", e)
                         }
-                    } catch (e: Exception) {
-                        Log.e(TAG, "Failed to start service: ${e.message}", e)
+                    }
+                } else {
+                    // No instant subscriptions, stop the service using stopService()
+                    // This avoids ForegroundServiceDidNotStartInTimeException, see #1520
+                    Log.d(TAG, "ServiceStartWorker: Stopping service (work ID: ${id})")
+                    Intent(context, SubscriberService::class.java).also {
+                        context.stopService(it)
                     }
                 }
             }

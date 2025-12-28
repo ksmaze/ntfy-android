@@ -327,7 +327,6 @@
     <string name="detail_settings_about_topic_url_title">Themen-URL</string>
     <string name="detail_settings_about_header">Über</string>
     <string name="detail_settings_about_topic_url_copied_to_clipboard_message">In Zwischenablage kopiert</string>
-    <string name="main_menu_donate_title">Spenden 💸</string>
     <string name="detail_item_cannot_open_apk">Apps können nicht mehr installiert werden. Bitte stattdessen über einen Browser herunterladen. Details siehe Issue #531.</string>
     <string name="detail_settings_notifications_dedicated_channels_summary_on">Eigene Einstellungen für dieses Abo verwenden</string>
     <string name="detail_settings_notifications_open_channels_title">Beanchrichtigungseinstellungen konfigurieren</string>
@@ -350,4 +349,7 @@
     <string name="settings_advanced_exact_alarms_title">Genaue Alarme</string>
     <string name="settings_advanced_exact_alarms_true">ntfy kann genaue Alarme planen. Um WebSockets im Hintergrund wieder zu verbinden, sind genaue Alarme erforderlich. Hier tippen, um die Berechtigung zu widerrufen.</string>
     <string name="settings_advanced_exact_alarms_false">ntfy kann keine genauen Alarme planen. Um WebSockets im Hintergrund wieder zu verbinden, sind genaue Alarme erforderlich. Tippe hier, um die Berechtigung zu erteilen.</string>
+    <string name="settings_general_dynamic_colors_title">Dynamische Farben</string>
+    <string name="settings_general_dynamic_colors_summary_enabled">Verwendung der dynamischen Systemfarben</string>
+    <string name="settings_general_dynamic_colors_summary_disabled">Verwendung der ntfy-Themenfarben</string>
 </resources>

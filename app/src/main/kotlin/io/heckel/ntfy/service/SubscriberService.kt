@@ -10,7 +10,6 @@ import android.os.IBinder
 import android.os.PowerManager
 import android.os.SystemClock
 import androidx.core.app.NotificationCompat
-import androidx.core.content.ContextCompat
 import io.heckel.ntfy.BuildConfig
 import io.heckel.ntfy.R
 import io.heckel.ntfy.app.Application
@@ -114,6 +113,17 @@ class SubscriberService : Service() {
             }
         } catch (e: Exception) {
             Log.e(TAG, "Failed to start foreground service: ${e.message}", e)
+            // On Android 12+, starting a foreground service from the background is restricted.
+            // ForegroundServiceStartNotAllowedException is thrown when the app is in the background.
+            // We stop ourselves gracefully; the service will be started when the user opens the app.
+            // This should not happen if the battery optimization exemption was granted by the user.
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && e is ForegroundServiceStartNotAllowedException) {
+                Log.w(TAG, "Cannot start foreground service from background, stopping: ${e.message}")
+                stopSelf()
+                return
+            } else {
+                throw e
+            }
         }
     }
 
@@ -132,7 +142,7 @@ class SubscriberService : Service() {
         Log.d(TAG, "Starting the foreground service task")
         isServiceStarted = true
         saveServiceState(this, ServiceState.STARTED)
-        wakeLock = (getSystemService(Context.POWER_SERVICE) as PowerManager).run {
+        wakeLock = (getSystemService(POWER_SERVICE) as PowerManager).run {
             newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, WAKE_LOCK_TAG)
         }
         refreshConnections()
@@ -315,9 +325,9 @@ class SubscriberService : Service() {
         }
     }
 
-    private fun createNotificationChannel(): NotificationManager? {
+    private fun createNotificationChannel(): NotificationManager {
         val notificationManager =
-            getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            getSystemService(NOTIFICATION_SERVICE) as NotificationManager
         val channelName = getString(R.string.channel_subscriber_service_name) // Show's up in UI
         val channel = NotificationChannel(
             NOTIFICATION_CHANNEL_ID,
@@ -338,7 +348,7 @@ class SubscriberService : Service() {
             }
         return NotificationCompat.Builder(this, NOTIFICATION_CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_notification_instant)
-            .setColor(ContextCompat.getColor(this, Colors.notificationIcon(this)))
+            .setColor(Colors.notificationIcon(this))
             .setContentTitle(title)
             .setContentText(text)
             .setContentIntent(pendingIntent)
@@ -364,9 +374,9 @@ class SubscriberService : Service() {
             restartServiceIntent,
             PendingIntent.FLAG_ONE_SHOT or PendingIntent.FLAG_IMMUTABLE
         )
-        applicationContext.getSystemService(Context.ALARM_SERVICE)
+        applicationContext.getSystemService(ALARM_SERVICE)
         val alarmService: AlarmManager =
-            applicationContext.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+            applicationContext.getSystemService(ALARM_SERVICE) as AlarmManager
         alarmService.set(
             AlarmManager.ELAPSED_REALTIME,
             SystemClock.elapsedRealtime() + 1000,
@@ -419,14 +429,14 @@ class SubscriberService : Service() {
         private const val SHARED_PREFS_SERVICE_STATE = "ServiceState"
 
         fun saveServiceState(context: Context, state: ServiceState) {
-            val sharedPrefs = context.getSharedPreferences(SHARED_PREFS_ID, Context.MODE_PRIVATE)
+            val sharedPrefs = context.getSharedPreferences(SHARED_PREFS_ID, MODE_PRIVATE)
             sharedPrefs.edit {
                 putString(SHARED_PREFS_SERVICE_STATE, state.name)
             }
         }
 
         fun readServiceState(context: Context): ServiceState {
-            val sharedPrefs = context.getSharedPreferences(SHARED_PREFS_ID, Context.MODE_PRIVATE)
+            val sharedPrefs = context.getSharedPreferences(SHARED_PREFS_ID, MODE_PRIVATE)
             val value = sharedPrefs.getString(SHARED_PREFS_SERVICE_STATE, ServiceState.STOPPED.name)
             return ServiceState.valueOf(value!!)
         }
