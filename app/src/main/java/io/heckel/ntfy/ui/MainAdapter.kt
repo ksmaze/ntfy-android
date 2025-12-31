@@ -6,6 +6,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
+import android.text.format.DateUtils
 import android.widget.TextView
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
@@ -78,18 +79,17 @@ class MainAdapter(private val repository: Repository, private val onClick: (Subs
             if (subscription.instant && subscription.state == ConnectionState.CONNECTING) {
                 statusMessage += ", " + context.getString(R.string.main_item_status_reconnecting)
             }
-            val date = Date(subscription.lastActive * 1000)
-            val dateStr = DateFormat.getDateInstance(DateFormat.SHORT).format(date)
+            val lastActiveMillis = subscription.lastActive * 1000
+            val sameDay = DateUtils.isToday(lastActiveMillis)
             val moreThanOneDay = System.currentTimeMillis()/1000 - subscription.lastActive > 24 * 60 * 60
-            val sameDay = dateStr == DateFormat.getDateInstance(DateFormat.SHORT).format(Date()) // Omg this is horrible
             val dateText = if (subscription.lastActive == 0L) {
                 ""
             } else if (sameDay) {
-                DateFormat.getTimeInstance(DateFormat.SHORT).format(date)
+                DateFormat.getTimeInstance(DateFormat.SHORT).format(Date(lastActiveMillis))
             } else if (!moreThanOneDay) {
                 context.getString(R.string.main_item_date_yesterday)
             } else {
-                dateStr
+                DateFormat.getDateInstance(DateFormat.SHORT).format(Date(lastActiveMillis))
             }
             val globalMutedUntil = repository.getGlobalMutedUntil()
             val showMutedForeverIcon = (subscription.mutedUntil == 1L || globalMutedUntil == 1L) && !isUnifiedPush
