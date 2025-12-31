@@ -9,14 +9,6 @@ apply plugin: 'kotlin-android'
 apply plugin: 'com.google.gms.google-services'
 
 android {
-    signingConfigs {
-        debug {
-            storeFile file('D:\\Dropbox\\Important\\keystore.jks')
-            storePassword 'dragon110'
-            keyAlias 'key0'
-            keyPassword 'dragon110'
-        }
-    }
     compileSdkVersion 36
 
     defaultConfig {
