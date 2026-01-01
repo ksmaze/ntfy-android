@@ -92,7 +92,7 @@ data class SubscriptionWithMetadata(
     val lastActive: Long
 )
 
-@Entity(primaryKeys = ["id", "subscriptionId"], indices = [Index(value = ["subscriptionId"])])
+@Entity(primaryKeys = ["id", "subscriptionId"], indices = [Index(value = ["subscriptionId", "timestamp"])])
 data class Notification(
     @ColumnInfo(name = "id") val id: String,
     @ColumnInfo(name = "subscriptionId") val subscriptionId: Long,
@@ -201,7 +201,7 @@ data class LogEntry(
             this(0, timestamp, tag, level, message, exception)
 }
 
-@androidx.room.Database(entities = [Subscription::class, Notification::class, User::class, LogEntry::class], version = 15)
+@androidx.room.Database(entities = [Subscription::class, Notification::class, User::class, LogEntry::class], version = 16)
 @TypeConverters(Converters::class)
 abstract class Database : RoomDatabase() {
     abstract fun subscriptionDao(): SubscriptionDao
@@ -231,6 +231,7 @@ abstract class Database : RoomDatabase() {
                     .addMigrations(MIGRATION_12_13)
                     .addMigrations(MIGRATION_13_14)
                     .addMigrations(MIGRATION_14_15)
+                    .addMigrations(MIGRATION_15_16)
                     .fallbackToDestructiveMigration()
                     .build()
                 this.instance = instance
@@ -346,6 +347,13 @@ abstract class Database : RoomDatabase() {
         private val MIGRATION_14_15 = object : Migration(14, 15) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("CREATE INDEX index_Notification_subscriptionId ON Notification (subscriptionId)")
+            }
+        }
+
+        private val MIGRATION_15_16 = object : Migration(15, 16) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("DROP INDEX index_Notification_subscriptionId")
+                db.execSQL("CREATE INDEX index_Notification_subscriptionId_timestamp ON Notification (subscriptionId, timestamp)")
             }
         }
     }
