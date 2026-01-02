@@ -12,13 +12,13 @@ import android.widget.TextView
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
+import com.bumptech.glide.Glide
 import io.heckel.ntfy.BuildConfig
 import io.heckel.ntfy.R
 import io.heckel.ntfy.db.ConnectionState
 import io.heckel.ntfy.db.Repository
 import io.heckel.ntfy.db.Subscription
 import io.heckel.ntfy.util.displayName
-import io.heckel.ntfy.util.readBitmapFromUriOrNull
 import java.text.DateFormat
 import java.util.*
 
@@ -111,8 +111,13 @@ class MainAdapter(
             val showMutedForeverIcon = (subscription.mutedUntil == 1L || globalMutedUntil == 1L) && !isUnifiedPush
             val showMutedUntilIcon = !showMutedForeverIcon && (subscription.mutedUntil > 1L || globalMutedUntil > 1L) && !isUnifiedPush
             if (subscription.icon != null) {
-                imageView.setImageBitmap(subscription.icon.readBitmapFromUriOrNull(context))
+                Glide.with(context)
+                    .load(subscription.icon)
+                    .placeholder(R.drawable.ic_sms_gray_24dp)
+                    .error(R.drawable.ic_sms_gray_24dp)
+                    .into(imageView)
             } else {
+                Glide.with(context).clear(imageView)
                 imageView.setImageResource(R.drawable.ic_sms_gray_24dp)
             }
             nameView.text = displayName(appBaseUrl, subscription)
