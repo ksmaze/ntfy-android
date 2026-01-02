@@ -12,10 +12,7 @@ import android.view.*
 import android.widget.*
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
-import androidx.core.view.WindowInsetsCompat
-import androidx.core.view.updatePadding
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.RecyclerView
@@ -23,6 +20,7 @@ import com.google.android.material.textfield.TextInputLayout
 import io.heckel.ntfy.R
 import io.heckel.ntfy.app.Application
 import io.heckel.ntfy.msg.ApiService
+import io.heckel.ntfy.shortcut.RecentTopicShareShortcuts
 import io.heckel.ntfy.util.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -147,6 +145,23 @@ class ShareActivity : AppCompatActivity() {
             validateInput()
         }
 
+        val preselectedTopicUrl = RecentTopicShareShortcuts.resolveTopicUrlFromShareIntent(intent, repository.getLastShareTopics())
+        if (preselectedTopicUrl != null) {
+            try {
+                val (baseUrl, topic) = splitTopicUrl(preselectedTopicUrl)
+                val defaultUrl = defaultBaseUrl ?: appBaseUrl
+                topicText.text = topic
+                if (baseUrl == defaultUrl) {
+                    useAnotherServerCheckbox.isChecked = false
+                } else {
+                    useAnotherServerCheckbox.isChecked = true
+                    baseUrlText.setText(baseUrl)
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "Invalid preselected topicUrl $preselectedTopicUrl", e)
+            }
+        }
+
         // Things that need the database
         lifecycleScope.launch(Dispatchers.IO) {
             // Populate "suggested topics"
@@ -187,14 +202,14 @@ class ShareActivity : AppCompatActivity() {
             // Set topicText.text to the first suggested topic
             val activity = this@ShareActivity
             activity.runOnUiThread {
-                if (!autoSendTriggered) {
+                if (!autoSendTriggered && preselectedTopicUrl == null) {
                     topicText.text = suggestedTopics.firstOrNull()?.let {
                         val (_, topic) = splitTopicUrl(it)
                         topic
                     } ?: ""
                 }
                 initBaseUrlDropdown(baseUrls, baseUrlText, baseUrlLayout)
-                if (!autoSendTriggered) {
+                if (!autoSendTriggered && preselectedTopicUrl == null) {
                     useAnotherServerCheckbox.isChecked = if (suggestedTopics.isNotEmpty()) {
                         try {
                             val (baseUrl, _) = splitTopicUrl(suggestedTopics.first())
@@ -477,6 +492,7 @@ class ShareActivity : AppCompatActivity() {
                 )
                 runOnUiThread {
                     repository.addLastShareTopic(topicUrl(baseUrl, topic))
+                    RecentTopicShareShortcuts.update(applicationContext, repository.getLastShareTopics())
                     Log.addScrubTerm(shortUrl(baseUrl), Log.TermType.Domain)
                     Log.addScrubTerm(topic, Log.TermType.Term)
                     finish()
@@ -562,6 +578,7 @@ class ShareActivity : AppCompatActivity() {
 
     private fun maybeAutoSendForText() {
         if (autoSendTriggered) return
+        if (RecentTopicShareShortcuts.resolveTopicUrlFromShareIntent(intent, repository.getLastShareTopics()) != null) return
         val text = if (this::contentText.isInitialized) contentText.text?.toString().orEmpty() else ""
         if (text.isBlank()) return
         if (textContainsAutoSendDomain(text)) {

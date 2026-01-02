@@ -10,6 +10,7 @@ import io.heckel.ntfy.app.Application
 import io.heckel.ntfy.db.Repository
 import io.heckel.ntfy.firebase.FirebaseMessenger
 import io.heckel.ntfy.msg.NotificationService
+import io.heckel.ntfy.shortcut.RecentTopicShareShortcuts
 import io.heckel.ntfy.util.Log
 import io.heckel.ntfy.util.topicUrl
 import java.io.InputStreamReader
@@ -88,6 +89,7 @@ class Backuper(val context: Context) {
         }
         if (settings.lastSharedTopics != null) {
             settings.lastSharedTopics.forEach { repository.addLastShareTopic(it) }
+            RecentTopicShareShortcuts.update(context.applicationContext, repository.getLastShareTopics())
         }
     }
 
