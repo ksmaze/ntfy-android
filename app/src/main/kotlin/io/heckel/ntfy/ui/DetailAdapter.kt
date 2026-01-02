@@ -204,9 +204,8 @@ class DetailAdapter(private val activity: Activity, private val lifecycleScope: 
             }
             val attachment = notification.attachment
             val image = attachment.contentUri != null && supportedImage(attachment.type) && previewableImage(attachmentFileStat)
-            val bitmap = if (image) attachment.contentUri.readBitmapFromUriOrNull(context) else null
-            maybeRenderAttachmentImage(context, bitmap, attachment)
-            maybeRenderAttachmentBox(context, notification, attachment, attachmentFileStat, bitmap)
+            maybeRenderAttachmentImage(context, image, attachment)
+            maybeRenderAttachmentBox(context, notification, attachment, attachmentFileStat, image)
         }
 
         private fun maybeRenderIcon(context: Context, notification: Notification, iconStat: FileInfo?) {
@@ -216,8 +215,7 @@ class DetailAdapter(private val activity: Activity, private val lifecycleScope: 
             }
             try {
                 val icon = notification.icon
-                val bitmap = icon.contentUri?.readBitmapFromUri(context) ?: throw Exception("uri empty")
-                iconView.setImageBitmap(bitmap)
+                Glide.with(context).load(icon.contentUri).into(iconView)
                 iconView.visibility = View.VISIBLE
             } catch (_: Exception) {
                 iconView.visibility = View.GONE
@@ -270,8 +268,8 @@ class DetailAdapter(private val activity: Activity, private val lifecycleScope: 
             return button
         }
 
-        private fun maybeRenderAttachmentBox(context: Context, notification: Notification, attachment: Attachment, attachmentFileStat: FileInfo?, bitmap: Bitmap?) {
-            if (bitmap != null) {
+        private fun maybeRenderAttachmentBox(context: Context, notification: Notification, attachment: Attachment, attachmentFileStat: FileInfo?, image: Boolean) {
+            if (image) {
                 attachmentBoxView.visibility = View.GONE
                 return
             }
@@ -380,15 +378,17 @@ class DetailAdapter(private val activity: Activity, private val lifecycleScope: 
             }
         }
 
-        private fun maybeRenderAttachmentImage(context: Context, bitmap: Bitmap?, attachment: Attachment) {
-            if (bitmap == null) {
+        private fun maybeRenderAttachmentImage(context: Context, image: Boolean, attachment: Attachment) {
+            if (!image) {
                 attachmentImageView.visibility = View.GONE
                 return
             }
             try {
                 Glide.with(context).load(attachment.contentUri).fitCenter().into(attachmentImageView)
                 attachmentImageView.setOnClickListener {
-                    StfalconImageViewer.Builder<Any?>(context, listOf(bitmap)) { imageView, _ ->
+                    // We pass a dummy list of size 1, because StfalconImageViewer needs a list.
+                    // The actual loading is done by Glide in the callback using the attachment URI.
+                    StfalconImageViewer.Builder<Any?>(context, listOf(Unit)) { imageView, _ ->
                         Glide.with(context).load(attachment.contentUri).into(imageView)
                     }
                         .allowZooming(true)
