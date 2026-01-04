@@ -84,18 +84,6 @@ class MainAdapter(
         private val dateFormat = DateFormat.getDateInstance(DateFormat.SHORT)
         private val timeFormat = DateFormat.getTimeInstance(DateFormat.SHORT)
 
-        init {
-            itemView.setOnClickListener {
-                subscription?.let(onClick)
-            }
-            itemView.setOnLongClickListener {
-                subscription?.let { s ->
-                    onLongClick(s)
-                    true
-                } ?: false
-            }
-        }
-
         fun bind(subscription: Subscription) {
             this.subscription = subscription
             val isUnifiedPush = subscription.upAppId != null
@@ -149,6 +137,8 @@ class MainAdapter(
                 newItemsView.setTextColor(onPrimaryColor)
                 newItemsView.background = countDrawable
             }
+            itemView.setOnClickListener { onClick(subscription) }
+            itemView.setOnLongClickListener { onLongClick(subscription); true }
             if (selected.contains(subscription.id)) {
                 itemView.setBackgroundColor(Colors.itemSelectedBackground(context))
             } else {
