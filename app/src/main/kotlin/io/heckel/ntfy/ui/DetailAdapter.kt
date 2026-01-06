@@ -45,13 +45,14 @@ import androidx.core.net.toUri
 class DetailAdapter(private val activity: Activity, private val lifecycleScope: CoroutineScope, private val repository: Repository, private val onClick: (Notification) -> Unit, private val onLongClick: (Notification) -> Unit) :
     ListAdapter<Notification, DetailAdapter.DetailViewHolder>(TopicDiffCallback) {
     private val markwon: Markwon = MarkwonFactory.createForMessage(activity)
+    private val markdownCache = android.util.LruCache<String, Pair<String, android.text.Spanned>>(100)
     val selected = mutableSetOf<String>() // Notification IDs
 
     /* Creates and inflates view and return TopicViewHolder. */
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): DetailViewHolder {
         val view = LayoutInflater.from(parent.context)
             .inflate(R.layout.fragment_detail_item, parent, false)
-        return DetailViewHolder(activity, lifecycleScope, repository, markwon, view, selected, onClick, onLongClick)
+        return DetailViewHolder(activity, lifecycleScope, repository, markwon, markdownCache, view, selected, onClick, onLongClick)
     }
 
     /* Gets current topic and uses it to bind view. */
@@ -83,6 +84,7 @@ class DetailAdapter(private val activity: Activity, private val lifecycleScope: 
         private val lifecycleScope: CoroutineScope,
         private val repository: Repository,
         private val markwon: Markwon,
+        private val markdownCache: android.util.LruCache<String, Pair<String, android.text.Spanned>>,
         itemView: View,
         private val selected: Set<String>,
         val onClick: (Notification) -> Unit,
@@ -117,7 +119,15 @@ class DetailAdapter(private val activity: Activity, private val lifecycleScope: 
             dateView.text = formatDateShort(notification.timestamp)
             if (notification.isMarkdown()) {
                 messageView.autoLinkMask = 0
-                markwon.setMarkdown(messageView, message.toString())
+                val text = message.toString()
+                val cached = markdownCache.get(notification.id)
+                if (cached != null && cached.first == text) {
+                    markwon.setParsedMarkdown(messageView, cached.second)
+                } else {
+                    val spanned = markwon.toMarkdown(text)
+                    markdownCache.put(notification.id, Pair(text, spanned))
+                    markwon.setParsedMarkdown(messageView, spanned)
+                }
             } else {
                 messageView.autoLinkMask = Linkify.WEB_URLS
                 messageView.text = message
