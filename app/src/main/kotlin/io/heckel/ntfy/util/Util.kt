@@ -103,9 +103,30 @@ fun validUrl(url: String): Boolean {
     return "^https?://\\S+".toRegex().matches(url)
 }
 
+private data class DateFormatState(val locale: java.util.Locale, val timeZone: java.util.TimeZone, val format: DateFormat)
+
+private val cachedDateFormat = object : ThreadLocal<DateFormatState>() {
+    override fun initialValue(): DateFormatState {
+        return createState()
+    }
+}
+
+private fun createState(): DateFormatState {
+    val locale = java.util.Locale.getDefault()
+    val timeZone = java.util.TimeZone.getDefault()
+    val format = DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT, locale)
+    format.timeZone = timeZone
+    return DateFormatState(locale, timeZone, format)
+}
+
 fun formatDateShort(timestampSecs: Long): String {
     val date = Date(timestampSecs*1000)
-    return DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT).format(date)
+    var state = cachedDateFormat.get()!!
+    if (state.locale != java.util.Locale.getDefault() || state.timeZone != java.util.TimeZone.getDefault()) {
+        state = createState()
+        cachedDateFormat.set(state)
+    }
+    return state.format.format(date)
 }
 
 fun toPriority(priority: Int?): Int {
