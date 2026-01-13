@@ -59,6 +59,8 @@ class ShareActivity : AppCompatActivity() {
     private var clipboardPopulateAttempted = false
     private var clipboardPopulateAttemptedOnFocus = false
     private var autoSendTriggered = false
+    private var shortcutAutoSendTriggered = false
+    private var preselectedTopicUrl: String? = null
     private val autoSendTopic = "ksmaze"
     private val autoSendDomains: Set<String> = setOf(
         "javdb.com",
@@ -145,10 +147,10 @@ class ShareActivity : AppCompatActivity() {
             validateInput()
         }
 
-        val preselectedTopicUrl = RecentTopicShareShortcuts.resolveTopicUrlFromShareIntent(intent, repository.getLastShareTopics())
-        if (preselectedTopicUrl != null) {
+        preselectedTopicUrl = RecentTopicShareShortcuts.resolveTopicUrlFromShareIntent(intent, repository.getLastShareTopics())
+        preselectedTopicUrl?.let { url ->
             try {
-                val (baseUrl, topic) = splitTopicUrl(preselectedTopicUrl)
+                val (baseUrl, topic) = splitTopicUrl(url)
                 val defaultUrl = defaultBaseUrl ?: appBaseUrl
                 topicText.text = topic
                 if (baseUrl == defaultUrl) {
@@ -158,7 +160,7 @@ class ShareActivity : AppCompatActivity() {
                     baseUrlText.setText(baseUrl)
                 }
             } catch (e: Exception) {
-                Log.w(TAG, "Invalid preselected topicUrl $preselectedTopicUrl", e)
+                Log.w(TAG, "Invalid preselected topicUrl $url", e)
             }
         }
 
@@ -231,7 +233,7 @@ class ShareActivity : AppCompatActivity() {
         maybePopulateFromClipboard(intent)
         val type = intent.type ?: return
         if (intent.action != Intent.ACTION_SEND) return
-        if (type == "text/plain") {
+        if (type == "text/plain" || type.startsWith("text/")) {
             handleSendText(intent)
         } else if (type.startsWith("image/")) {
             handleSendImage(intent)
@@ -261,6 +263,7 @@ class ShareActivity : AppCompatActivity() {
         contentText.text = text
         show()
         maybeAutoSendForText()
+        maybeAutoSendForShortcut()
     }
 
     private fun maybePopulateFromClipboard(intent: Intent) {
@@ -325,6 +328,7 @@ class ShareActivity : AppCompatActivity() {
                 show()
                 validateInput()
                 maybeAutoSendForText()
+                maybeAutoSendForShortcut()
             }
         } else {
             Log.d(TAG, "Clipboard empty when requested via shortcut (onResume)")
@@ -368,6 +372,7 @@ class ShareActivity : AppCompatActivity() {
                 show()
                 validateInput()
                 maybeAutoSendForText()
+                maybeAutoSendForShortcut()
             }
         } else {
             Log.d(TAG, "Clipboard empty when requested via shortcut (onWindowFocus)")
@@ -386,6 +391,7 @@ class ShareActivity : AppCompatActivity() {
             contentImage.setImageBitmap(fileUri!!.readBitmapFromUri(applicationContext))
             contentText.text = getString(R.string.share_content_image_text)
             show(image = true)
+            maybeAutoSendForShortcut()
         } catch (e: Exception) {
             fileUri = null
             contentText.text = ""
@@ -409,6 +415,7 @@ class ShareActivity : AppCompatActivity() {
             contentFileInfo.text = "${info.filename}\n${formatBytes(info.size)}"
             contentFileIcon.setImageResource(mimeTypeToIconResource(mimeType))
             show(file = true)
+            maybeAutoSendForShortcut()
         } catch (e: Exception) {
             fileUri = null
             contentText.text = ""
@@ -542,6 +549,7 @@ class ShareActivity : AppCompatActivity() {
             show()
             validateInput()
             maybeAutoSendForText()
+            maybeAutoSendForShortcut()
         } else {
             Toast.makeText(this, getString(R.string.shortcut_clipboard_share_empty), Toast.LENGTH_LONG).show()
         }
@@ -578,7 +586,6 @@ class ShareActivity : AppCompatActivity() {
 
     private fun maybeAutoSendForText() {
         if (autoSendTriggered) return
-        if (RecentTopicShareShortcuts.resolveTopicUrlFromShareIntent(intent, repository.getLastShareTopics()) != null) return
         val text = if (this::contentText.isInitialized) contentText.text?.toString().orEmpty() else ""
         if (text.isBlank()) return
         if (textContainsAutoSendDomain(text)) {
@@ -588,6 +595,23 @@ class ShareActivity : AppCompatActivity() {
             topicText.text = autoSendTopic
             onShareClick()
         }
+    }
+
+    private fun maybeAutoSendForShortcut() {
+        if (shortcutAutoSendTriggered) return
+        if (autoSendTriggered) return
+        if (preselectedTopicUrl == null) return
+
+        val message = if (this::contentText.isInitialized) contentText.text?.toString().orEmpty() else ""
+        if (message.isBlank() || message == "(no text)") return
+
+        val baseUrl = getBaseUrl()
+        val topic = if (this::topicText.isInitialized) topicText.text?.toString().orEmpty() else ""
+        if (topic.isBlank()) return
+        if (useAnotherServerCheckbox.isChecked && (!validTopic(topic) || !validUrl(baseUrl))) return
+
+        shortcutAutoSendTriggered = true
+        onShareClick()
     }
 
     private fun textContainsAutoSendDomain(text: String): Boolean {
