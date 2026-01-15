@@ -129,6 +129,54 @@ fun formatDateShort(timestampSecs: Long): String {
     return state.format.format(date)
 }
 
+private val cachedDateOnlyFormat = object : ThreadLocal<DateFormatState>() {
+    override fun initialValue(): DateFormatState {
+        return createDateOnlyState()
+    }
+}
+
+private fun createDateOnlyState(): DateFormatState {
+    val locale = java.util.Locale.getDefault()
+    val timeZone = java.util.TimeZone.getDefault()
+    val format = DateFormat.getDateInstance(DateFormat.SHORT, locale)
+    format.timeZone = timeZone
+    return DateFormatState(locale, timeZone, format)
+}
+
+fun formatDateOnlyShort(timestampSecs: Long): String {
+    val date = Date(timestampSecs*1000)
+    var state = cachedDateOnlyFormat.get()!!
+    if (state.locale != java.util.Locale.getDefault() || state.timeZone != java.util.TimeZone.getDefault()) {
+        state = createDateOnlyState()
+        cachedDateOnlyFormat.set(state)
+    }
+    return state.format.format(date)
+}
+
+private val cachedTimeOnlyFormat = object : ThreadLocal<DateFormatState>() {
+    override fun initialValue(): DateFormatState {
+        return createTimeOnlyState()
+    }
+}
+
+private fun createTimeOnlyState(): DateFormatState {
+    val locale = java.util.Locale.getDefault()
+    val timeZone = java.util.TimeZone.getDefault()
+    val format = DateFormat.getTimeInstance(DateFormat.SHORT, locale)
+    format.timeZone = timeZone
+    return DateFormatState(locale, timeZone, format)
+}
+
+fun formatTimeOnlyShort(timestampSecs: Long): String {
+    val date = Date(timestampSecs*1000)
+    var state = cachedTimeOnlyFormat.get()!!
+    if (state.locale != java.util.Locale.getDefault() || state.timeZone != java.util.TimeZone.getDefault()) {
+        state = createTimeOnlyState()
+        cachedTimeOnlyFormat.set(state)
+    }
+    return state.format.format(date)
+}
+
 fun toPriority(priority: Int?): Int {
     return if (priority != null && ALL_PRIORITIES.contains(priority)) priority else PRIORITY_DEFAULT
 }
