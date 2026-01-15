@@ -19,7 +19,8 @@ import io.heckel.ntfy.db.ConnectionState
 import io.heckel.ntfy.db.Repository
 import io.heckel.ntfy.db.Subscription
 import io.heckel.ntfy.util.displayName
-import java.text.DateFormat
+import io.heckel.ntfy.util.formatDateOnlyShort
+import io.heckel.ntfy.util.formatTimeOnlyShort
 import java.util.*
 
 class MainAdapter(
@@ -81,8 +82,6 @@ class MainAdapter(
         private val instantImageView: View = itemView.findViewById(R.id.main_item_instant_image)
         private val newItemsView: TextView = itemView.findViewById(R.id.main_item_new)
         private val appBaseUrl = context.getString(R.string.app_base_url)
-        private val dateFormat = DateFormat.getDateInstance(DateFormat.SHORT)
-        private val timeFormat = DateFormat.getTimeInstance(DateFormat.SHORT)
 
         fun bind(subscription: Subscription) {
             this.subscription = subscription
@@ -103,11 +102,11 @@ class MainAdapter(
             val dateText = if (subscription.lastActive == 0L) {
                 ""
             } else if (sameDay) {
-                timeFormat.format(Date(lastActiveMillis))
+                formatTimeOnlyShort(subscription.lastActive)
             } else if (!moreThanOneDay) {
                 context.getString(R.string.main_item_date_yesterday)
             } else {
-                dateFormat.format(Date(lastActiveMillis))
+                formatDateOnlyShort(subscription.lastActive)
             }
             val globalMutedUntil = repository.getGlobalMutedUntil()
             val showMutedForeverIcon = (subscription.mutedUntil == 1L || globalMutedUntil == 1L) && !isUnifiedPush
